@@ -64,7 +64,7 @@ RSpec.describe HerokuTool::HerokuTargets do
     end
     it "should raise if repository accessed when unspecified" do
       [valid_ht.targets["staging"], valid_ht.targets["production"]].each do |target|
-        expect { target.repository }.to raise_error /repository/
+        expect { target.repository }.to raise_error(/repository/)
       end
     end
   end

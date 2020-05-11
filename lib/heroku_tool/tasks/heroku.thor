@@ -272,7 +272,6 @@ class Heroku < Thor
   def deploy_tracking(target_name, deploy_ref = nil)
     target = lookup_heroku(target_name)
     deploy_ref = check_deploy_ref(deploy_ref, target)
-    release_stage = target.staging? ? "staging" : "production"
     revision = `git log -1 #{deploy_ref} --pretty=format:%H`
     Heroku::Configuration.notify_of_deploy_tracking(
       self,

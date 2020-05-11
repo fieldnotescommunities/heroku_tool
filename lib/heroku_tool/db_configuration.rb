@@ -2,7 +2,7 @@
 module HerokuTool
   class DbConfiguration
     def config
-      @config ||= YAML.load(
+      @config ||= YAML.safe_load(
         ERB.new(File.read("config/database.yml")).result
       )
     end
