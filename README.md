@@ -26,12 +26,12 @@ Or install it yourself as:
 
 1) Your database configuration (config/database.yml) needs to have a username if you want to use the db configurations
 
-2) Append `load "heroku_tool/lib/tasks/db_drop_all_tables.rake"` to the end of Rakefile. 
+2) Append `load "heroku_tool/tasks/db_drop_all_tables.rake"` to the end of Rakefile. 
 
 3) Copy templates into codebase:
 
        cp $(bundle show heroku_tool)/templates/heroku.thor ./lib/tasks
-       cp $(bundle show heroku_tool)/heroku_targets.yml ./config
+       cp $(bundle show heroku_tool)/templates/heroku_targets.yml ./config
 
 4) update heroku_targets.yml with your staging and production targets. 
   My set up for this is to have staging deploy the local version, but production 

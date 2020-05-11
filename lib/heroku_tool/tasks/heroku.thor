@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "thor"
-require_relative "../heroku_tool/db_configuration"
-require_relative "../heroku_tool/heroku_targets"
-require_relative "../heroku_tool/thor_utils"
+require_relative "../db_configuration"
+require_relative "../heroku_targets"
+require_relative "../thor_utils"
 
 class Heroku < Thor
   module Configuration
@@ -21,12 +21,14 @@ class Heroku < Thor
         raise "choose between APP_REVISION and COMMIT_HASH"
       end
 
-      def before_deploying(instance, target, version, description: nil)
-        puts "about to deploy to #{target.name}"
+      def before_deploying(_instance, target, version, description: nil)
+        puts "about to deploy #{version} to #{target.name}"
+        puts "         #{description}" if description
       end
 
-      def after_deploying(instance, target, version, description: nil)
-        puts "deployed to #{target.name}"
+      def after_deploying(_instance, target, version, description: nil)
+        puts "deployed #{version} to #{target.name}"
+        puts "         #{description}" if description
       end
 
       def notify_of_deploy_tracking(running_thor_task, release_stage:, revision:, revision_describe:, repository:, target:, target_name:, deploy_ref:)
@@ -62,7 +64,10 @@ class Heroku < Thor
     end
 
     def check_deploy_ref(deploy_ref, target)
-      raise Thor::Error, "Invalid deploy ref '#{deploy_ref}'" if deploy_ref && deploy_ref[0] == "-"
+      if deploy_ref && deploy_ref[0] == "-"
+        raise Thor::Error, "Invalid deploy ref '#{deploy_ref}'"
+      end
+
       deploy_ref || target.deploy_ref
     end
 
@@ -143,6 +148,7 @@ class Heroku < Thor
     puts
     details = heroku_targets.targets.map { |name, target|
       next if target.local?
+
       print "."
       [
         "Heroku #{name}",
@@ -183,7 +189,9 @@ class Heroku < Thor
     puts_and_system "git push -f #{target.git_remote} #{deploy_ref}^{}:master"
 
     maintenance_on(target) if maintenance
-    puts_and_system "heroku run rake db:migrate -a #{target.heroku_app}" if options[:migrate]
+    if options[:migrate]
+      puts_and_system "heroku run rake db:migrate -a #{target.heroku_app}"
+    end
 
     puts_and_system %{heroku config:set #{Heroku::Configuration.app_revision_env_var}=$(git describe --always #{deploy_ref}) -a #{target.heroku_app}}
     if maintenance

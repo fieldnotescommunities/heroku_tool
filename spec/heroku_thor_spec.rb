@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-load File.expand_path("../../lib/tasks/heroku.thor", __FILE__)
+load File.expand_path("../../lib/heroku_tool/tasks/heroku.thor", __FILE__)
 
 RSpec.describe "Heroku thor" do
   it "is instantiated ok" do

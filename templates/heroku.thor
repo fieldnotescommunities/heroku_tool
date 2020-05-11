@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require "thor"
-Thor::Util.load_thorfile(File.expand_path("../../vendor/heroku_tool/lib/tasks/heroku.thor", __dir__))
+spec = Gem::Specification.find_by_name "heroku_tool"
+Thor::Util.load_thorfile(File.expand_path("lib/heroku_tool/tasks/heroku.thor", spec.gem_dir))
 
 class Heroku
   module MyConfig
