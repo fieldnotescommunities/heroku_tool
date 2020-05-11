@@ -30,8 +30,8 @@ Or install it yourself as:
 
 3) Copy templates into codebase:
 
-       cp $(gem show heroku_tool)/templates/heroku.thor ./lib/tasks
-       cp $(gem show heroku_tool)/heroku_targets.yml ./config
+       cp $(bundle show heroku_tool)/templates/heroku.thor ./lib/tasks
+       cp $(bundle show heroku_tool)/heroku_targets.yml ./config
 
 4) update heroku_targets.yml with your staging and production targets. 
   My set up for this is to have staging deploy the local version, but production 
@@ -39,9 +39,17 @@ Or install it yourself as:
 
       > TODO: more detail
  
+5) You may want to set up a smoke test that your heroku targets are valid
+ 
+       require "heroku_tool/heroku_targets"
+       
+       RSpec.describe "heroku_targets.yml" do
+         it "is valid (smoke test)" do 
+           HerokuTool::HerokuTargets.from_file(Rails.root.join("config/heroku_targets.yml"))
+         end
+       end
 
 ## Usage
-
 
 ### Deploy 
 
@@ -84,6 +92,10 @@ NB: this won't work from a staging to a production environment (failsafe)
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+
+Ensure standards before PR:
+
+    bundle exec standardrb --fix
 
 ## Contributing
 

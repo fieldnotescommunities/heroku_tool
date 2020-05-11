@@ -1,0 +1,21 @@
+# find `database_url` by running `heroku pg:info --app=APP_NAME`
+_defaults:
+  repository: https://github.com/red56/heroku_tool
+production:
+  heroku_app : some-heroku-production
+  git_remote : heroku-production
+  deploy_ref : origin/master
+  display_name : production (heroku_tool)
+demo:
+  heroku_app : some-heroku-demo
+  git_remote : heroku-demo
+  deploy_ref : HEAD
+  display_name : demo (heroku_tool)
+  trackable_release_stage : demo
+  staging : true
+staging:
+  heroku_app : some-heroku-staging
+  git_remote : heroku-staging
+  deploy_ref : HEAD
+  display_name : staging (heroku_tool)
+  staging : true
