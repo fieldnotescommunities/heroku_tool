@@ -3,7 +3,7 @@
 namespace :db do
   desc "drop all tables without worrying about concurrent accesses"
   task drop_all_tables: :environment do
-    require File.expand_path("../../heroku_tool/db_configuration.rb", __FILE__)
+    require File.expand_path("../../db_configuration.rb", __FILE__)
     abort("Don't run this on production") if Rails.env.production?
 
     db_config = HerokuTool::DbConfiguration.new
