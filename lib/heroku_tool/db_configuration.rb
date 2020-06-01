@@ -2,9 +2,8 @@
 module HerokuTool
   class DbConfiguration
     def config
-      @config ||= YAML.safe_load(
-        ERB.new(File.read("config/database.yml")).result
-      )
+      db_config_from_file = ERB.new(File.read("config/database.yml")).result
+      @config ||= YAML.safe_load(db_config_from_file, [], [], true)
     end
 
     def generate_drop_tables_sql
