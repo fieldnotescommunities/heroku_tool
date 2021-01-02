@@ -142,6 +142,19 @@ class Heroku < Thor
   class_option :verbose, type: :boolean, aliases: "v", default: true
   default_command :help
 
+  desc "configs", "collects configs as text files in tmp"
+  def configs
+    remote_targets = heroku_targets.targets.reject { |_name, target| target.local? }
+    print "outputting #{remote_targets.count} configs to tmp/config.*.txt [ "
+    remote_targets.each do |_name, target|
+      print "."
+      cmd = "heroku config -s -a #{target.heroku_app} > tmp/config.#{target.heroku_app}.txt"
+      exec_with_clean_env(cmd)
+    end
+
+    puts " ]"
+  end
+
   desc "details", "collects and prints some information local and each target"
 
   def details
