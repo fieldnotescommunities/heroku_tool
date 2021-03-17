@@ -145,14 +145,13 @@ class Heroku < Thor
   desc "configs", "collects configs as text files in tmp"
   def configs
     remote_targets = heroku_targets.targets.reject { |_name, target| target.local? }
-    print "outputting #{remote_targets.count} configs to tmp/config.*.txt [ "
-    remote_targets.each do |_name, target|
-      print "."
+    remote_targets.each_with_index do |(_name, target), index|
+      print_output_progress(remote_targets, index)
       cmd = "heroku config -s -a #{target.heroku_app} > tmp/config.#{target.heroku_app}.txt"
       exec_with_clean_env(cmd)
     end
-
-    puts " ]"
+    print_output_progress(remote_targets)
+    puts ""
   end
 
   desc "details", "collects and prints some information local and each target"
@@ -443,5 +442,13 @@ class Heroku < Thor
         heroku run rake data:anonymize -a #{target.heroku_app}
       )
     end
+  end
+
+  private
+
+  def print_output_progress(remote_targets, index = nil)
+    index ||= remote_targets.length
+    remainder = remote_targets.length - index
+    print "\routputting configs to tmp/config.*.txt: #{index}/#{remote_targets.count} ▕#{'██' * index}#{"  " * remainder}▏\r"
   end
 end
