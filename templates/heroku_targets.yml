@@ -1,10 +1,12 @@
 # find `database_url` by running `heroku pg:info --app=APP_NAME`
 _defaults:
   repository: https://github.com/red56/heroku_tool
+  # what you are deploying to -- this should either be refs/head/main (the default) or refs/head/master
+  heroku_target_ref: refs/heads/main
 production:
   heroku_app : some-heroku-production
   git_remote : heroku-production
-  deploy_ref : origin/master
+  deploy_ref : origin/main
   display_name : production (heroku_tool)
 demo:
   heroku_app : some-heroku-demo

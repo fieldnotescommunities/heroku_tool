@@ -198,7 +198,7 @@ class Heroku < Thor
     message = deploy_message(target, deploy_ref_description)
     Configuration.before_deploying(self, target, deploy_ref_description)
     set_message(target_name, message)
-    puts_and_system "git push -f #{target.git_remote} #{deploy_ref}^{}:master"
+    puts_and_system "git push -f #{target.git_remote} #{deploy_ref}^{}:#{target.heroku_target_ref}"
 
     maintenance_on(target) if maintenance
     if options[:migrate]
