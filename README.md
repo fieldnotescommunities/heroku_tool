@@ -35,8 +35,11 @@ Or install it yourself as:
 
 4) update heroku_targets.yml with your staging and production targets. 
   My set up for this is to have staging deploy the local version, but production 
-  deploy the origin/master.
+  deploy the origin/main.
 
+   NB: master vs main
+   heroku-tool (as of 0.2.0) assumes the new current standard of main as the main branch, but if you're on the older standard of "master" then adjust your deploy refs to origin/master and the heroku_target_ref: in defaults to be ref/heads/master
+   
       > TODO: more detail
  
 5) You may want to set up a smoke test that your heroku targets are valid

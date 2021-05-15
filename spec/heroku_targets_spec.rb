@@ -9,11 +9,11 @@ RSpec.describe HerokuTool::HerokuTargets do
   production:
     heroku_app : my-production-heroku_app
     git_remote : heroku_production
-    deploy_ref : origin/master
+    deploy_ref : origin/main
   staging:
     heroku_app : my-staging-heroku_app
     git_remote : heroku_production
-    deploy_ref : origin/master
+    deploy_ref : origin/main
     display_name : My Lovely Staging heroku_app
     staging : true
     db_color : NAVY
@@ -72,7 +72,7 @@ RSpec.describe HerokuTool::HerokuTargets do
     valid_file_with_defaults = <<-VALID
     _defaults:
       repository : https://mygit.hub.com/some/where
-      deploy_ref : origin/master
+      deploy_ref : origin/main
     production:
       heroku_app : my-production-heroku_app
       git_remote : heroku_production
@@ -85,7 +85,7 @@ RSpec.describe HerokuTool::HerokuTargets do
     let(:valid_ht) { HerokuTool::HerokuTargets.from_string(valid_file_with_defaults) }
 
     it "can use defaults for deploy_ref" do
-      expect(valid_ht.targets["production"].deploy_ref).to eq("origin/master")
+      expect(valid_ht.targets["production"].deploy_ref).to eq("origin/main")
     end
     it "can override defaults for deploy_ref" do
       expect(valid_ht.targets["staging"].deploy_ref).to eq("HEAD")
@@ -93,6 +93,40 @@ RSpec.describe HerokuTool::HerokuTargets do
     it "should use defaults for repository" do
       [valid_ht.targets["staging"], valid_ht.targets["production"]].each do |target|
         expect(target.repository).to eq("https://mygit.hub.com/some/where")
+      end
+    end
+  end
+
+  describe "heroku_target_ref" do
+    context "out of the box" do
+      it "uses refs/heads/main" do
+        expect(valid_ht.targets["staging"].heroku_target_ref).to eq("refs/heads/main")
+        expect(valid_ht.targets["production"].heroku_target_ref).to eq("refs/heads/main")
+      end
+    end
+    context "can be explicitly set" do
+      valid_file_with_defaults = <<-VALID
+      _defaults:
+        repository : https://mygit.hub.com/some/where
+        deploy_ref : origin/main
+        heroku_target_ref : refs/heads/master
+      production:
+        heroku_app : my-production-heroku_app
+        git_remote : heroku_production
+      staging:
+        heroku_app : my-staging-heroku_app
+        git_remote : heroku_staging
+        deploy_ref : HEAD
+        heroku_target_ref: refs/heads/main
+      VALID
+
+      let(:valid_ht) { HerokuTool::HerokuTargets.from_string(valid_file_with_defaults) }
+
+      it "can set a new default" do
+        expect(valid_ht.targets["production"].heroku_target_ref).to eq("refs/heads/master")
+      end
+      it "can override" do
+        expect(valid_ht.targets["staging"].heroku_target_ref).to eq("refs/heads/main")
       end
     end
   end

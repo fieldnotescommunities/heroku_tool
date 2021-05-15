@@ -12,7 +12,7 @@ RSpec.describe "Heroku thor" do
       production:
         heroku_app : my-heroku-app
         git_remote : heroku-production
-        deploy_ref : origin/master
+        deploy_ref : origin/main
         display_name : my.heroku.com
       staging:
         heroku_app : my-heroku-staging-app

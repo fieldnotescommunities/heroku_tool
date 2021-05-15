@@ -95,6 +95,10 @@ module HerokuTool
         @values[:repository] || raise(required_value(:repository))
       end
 
+      def heroku_target_ref
+        @values[:heroku_target_ref] || "refs/heads/main"
+      end
+
       def to_s
         display_name
       end
