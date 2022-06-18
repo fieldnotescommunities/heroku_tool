@@ -51,6 +51,8 @@ class Heroku < Thor
   end
 
   module Shared
+    include HerokuTool::ThorUtils
+
     def self.exit_on_failure?
       true
     end
@@ -87,18 +89,6 @@ class Heroku < Thor
       @heroku_targets ||= HerokuTool::HerokuTargets.from_file(File.expand_path("config/heroku_targets.yml"))
     end
 
-    def puts_and_system(cmd)
-      puts cmd
-      puts "-------------"
-      system_with_clean_env cmd
-      puts "-------------"
-    end
-
-    def puts_and_exec(cmd)
-      puts cmd
-      exec_with_clean_env(cmd)
-    end
-
     protected
 
     def deploy_message(target, deploy_ref_describe)
@@ -108,22 +98,6 @@ class Heroku < Thor
      #{downtime} (in less than a minute from now).
       DEPLOY_MESSAGE
       message.gsub(/(\s|\n)+/, " ")
-    end
-
-    def system_with_clean_env(cmd)
-      if defined?(Bundler)
-        Bundler.with_clean_env { system cmd }
-      else
-        system cmd
-      end
-    end
-
-    def exec_with_clean_env(cmd)
-      if defined?(Bundler)
-        Bundler.with_clean_env { `#{cmd}` }
-      else
-        `#{cmd}`
-      end
     end
 
     def maintenance_on(target)
