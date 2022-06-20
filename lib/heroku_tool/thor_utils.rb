@@ -25,8 +25,10 @@ module HerokuTool
     end
 
     def exec_with_clean_env(cmd)
-      if defined?(Bundler)
+      if defined?(Bundler) && Bundler.respond_to?(:with_unbundled_env)
         Bundler.with_unbundled_env { `#{cmd}` }
+      elsif defined?(Bundler)
+        Bundler.with_clean_env { `#{cmd}` }
       else
         `#{cmd}`
       end
