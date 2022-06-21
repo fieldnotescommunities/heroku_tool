@@ -67,12 +67,18 @@ RSpec.describe HerokuTool::HerokuTargets do
         expect { target.repository }.to raise_error(/repository/)
       end
     end
+    it "should infer migrate_in_release_phase" do
+      [valid_ht.targets["staging"], valid_ht.targets["production"]].each do |target|
+        expect( target.migrate_in_release_phase ).to be_falsey
+      end
+    end
   end
   describe "with defaults" do
     valid_file_with_defaults = <<-VALID
     _defaults:
       repository : https://mygit.hub.com/some/where
       deploy_ref : origin/main
+      migrate_in_release_phase : true
     production:
       heroku_app : my-production-heroku_app
       git_remote : heroku_production
@@ -93,6 +99,11 @@ RSpec.describe HerokuTool::HerokuTargets do
     it "should use defaults for repository" do
       [valid_ht.targets["staging"], valid_ht.targets["production"]].each do |target|
         expect(target.repository).to eq("https://mygit.hub.com/some/where")
+      end
+    end
+    it "should use defaults for migrate_in_release_phase" do
+      [valid_ht.targets["staging"], valid_ht.targets["production"]].each do |target|
+        expect(target.migrate_in_release_phase).to be_truthy
       end
     end
   end

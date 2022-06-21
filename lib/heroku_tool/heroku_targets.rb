@@ -99,6 +99,10 @@ module HerokuTool
         @values[:heroku_target_ref] || "refs/heads/main"
       end
 
+      def migrate_in_release_phase
+        @values[:migrate_in_release_phase]
+      end
+
       def to_s
         display_name
       end

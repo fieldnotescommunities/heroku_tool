@@ -92,12 +92,16 @@ class Heroku < Thor
     protected
 
     def deploy_message(target, deploy_ref_describe)
-      downtime = options[:migrate] ? "👷 There will be a very short maintenance downtime" : ""
+      downtime = migrate_outside_of_release_phase?(target) ? "👷 There will be a very short maintenance downtime" : ""
       message = <<-DEPLOY_MESSAGE
      Deploying #{target.display_name} #{deploy_ref_describe}.
      #{downtime} (in less than a minute from now).
       DEPLOY_MESSAGE
       message.gsub(/(\s|\n)+/, " ")
+    end
+
+    def migrate_outside_of_release_phase?(target)
+      target.migrate_in_release_phase ? false : options[:migrate]
     end
 
     def maintenance_on(target)
@@ -158,15 +162,15 @@ class Heroku < Thor
   end
 
   desc "deploy TARGET (REF)", "deploy the latest to TARGET (optionally give a REF like a tag to deploy)"
-  method_option :migrate, default: true, desc: "Run with migrations", type: :boolean
-  method_option :maintenance, default: nil, desc: "Run with migrations", type: :boolean
+  method_option :migrate, default: true, desc: "Run with migrations (unless part of release phase)", type: :boolean
+  method_option :maintenance, default: nil, desc: "Maintenance step", type: :boolean
 
   def deploy(target_name, deploy_ref = nil)
     target = lookup_heroku(target_name)
     deploy_ref = check_deploy_ref(deploy_ref, target)
     deploy_ref_description = deploy_ref_describe(deploy_ref)
-    maintenance = options[:maintenance].nil? && options[:migrate] || options[:maintenance]
-    puts "Deploy #{deploy_ref_description} to #{target} with migrate=#{options[:migrate]} maintenance=#{maintenance} "
+    maintenance = options[:maintenance].nil? && migrate_outside_of_release_phase?(target) || options[:maintenance]
+    puts "Deploy #{deploy_ref_description} to #{target} with migrate=#{target.migrate_in_release_phase ? "(during release phase)" : migrate_outside_of_release_phase?(target)} maintenance=#{maintenance} "
 
     invoke :list_deployed, [target_name, deploy_ref], {}
     message = deploy_message(target, deploy_ref_description)
@@ -175,7 +179,7 @@ class Heroku < Thor
     puts_and_system "git push -f #{target.git_remote} #{deploy_ref}^{}:#{target.heroku_target_ref}"
 
     maintenance_on(target) if maintenance
-    if options[:migrate]
+    if migrate_outside_of_release_phase?(target)
       puts_and_system "heroku run rake db:migrate -a #{target.heroku_app}"
     end
 

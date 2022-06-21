@@ -56,15 +56,15 @@ Or install it yourself as:
 
 ### Deploy 
 
-Deploy the latest with db migrate during maintenance
+Deploy the latest with db migrate *(but see below) during maintenance
 
     thor heroku:deploy staging
 
-or without maintenance
+or without maintenance*
 
     thor heroku:deploy staging --no-maintenance
 
-or without migrating
+or without migrating*
 
     thor heroku:deploy staging --no-migrate
     
@@ -72,6 +72,14 @@ or a specific tag/branch
 
     thor heroku:deploy staging hotfix-branch
 
+*Note on db:migrate:
+
+It is very possible to run migrations as part of the heroku release phase:
+* https://mentalized.net/journal/2017/04/22/run-rails-migrations-on-heroku-deploy/
+* https://devcenter.heroku.com/articles/release-phase#design-considerations
+
+In this case you should set `migrate_in_release_phase: true` in your defaults (see templates/heroku_targets.yml)
+and you won't run migrate as a separate step.
 
 ### Sync
 
