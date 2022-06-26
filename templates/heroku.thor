@@ -6,6 +6,18 @@ Thor::Util.load_thorfile(File.expand_path("lib/heroku_tool/tasks/heroku.thor", s
 
 class Heroku
   module MyConfig
+    def platform_maintenance_urls(asset_host)
+      time = Time.now.strftime("%Y%m%d-%H%M-%S")
+      {
+        ERROR_PAGE_URL: "https://#{asset_host}/platform_error/#{time}",
+        MAINTENANCE_PAGE_URL: "https://#{asset_host}/platform_maintenance/#{time}"
+      }
+    end
+
+    def maintenance_mode_env_var
+      "X_HEROKU_TOOL_MAINTENANCE_MODE"
+    end
+
     # def notify_of_deploy_tracking(running_thor_task, release_stage:, revision:, revision_describe:, repository:, target:, target_name:, deploy_ref:)
     # end
 
