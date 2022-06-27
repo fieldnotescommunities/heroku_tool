@@ -12,6 +12,8 @@ Add this line to your application's Gemfile:
 gem 'heroku_tool'
 ```
 
+(you can add it to development/test only if you want)
+
 And then execute:
 
     $ bundle
@@ -26,7 +28,7 @@ Or install it yourself as:
 
 1) Your database configuration (config/database.yml) needs to have a username if you want to use the db configurations
 
-2) Append `load "heroku_tool/tasks/db_drop_all_tables.rake"` to the end of Rakefile. 
+2) Append `load "heroku_tool/tasks/db_drop_all_tables.rake"` to the end of Rakefile (see lib/templates/Rakefile if you are adding this gem in development/test only)
 
 3) Copy templates into codebase:
 

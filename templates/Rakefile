@@ -8,7 +8,7 @@ require_relative "config/application"
 Rails.application.load_tasks
 
 begin
-  load "vendor/heroku_tool/lib/tasks/db_drop_all_tables.rake"
-rescue StandardError
+  load "heroku_tool/lib/tasks/db_drop_all_tables.rake"
+rescue LoadError
   # not loading db_drop_all_tables -- not defined in this environment?
 end

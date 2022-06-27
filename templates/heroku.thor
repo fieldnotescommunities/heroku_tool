@@ -4,7 +4,7 @@ begin
   require "thor"
   spec = Gem::Specification.find_by_name "heroku_tool"
   Thor::Util.load_thorfile(File.expand_path("lib/heroku_tool/tasks/heroku.thor", spec.gem_dir))
-rescue StandardError
+rescue LoadError, StandardError
   puts "Not loading HerokuTool"
 end
 
