@@ -1,11 +1,18 @@
 # frozen_string_literal: true
 
-require "thor"
-spec = Gem::Specification.find_by_name "heroku_tool"
-Thor::Util.load_thorfile(File.expand_path("lib/heroku_tool/tasks/heroku.thor", spec.gem_dir))
+begin
+  require "thor"
+  spec = Gem::Specification.find_by_name "heroku_tool"
+  Thor::Util.load_thorfile(File.expand_path("lib/heroku_tool/tasks/heroku.thor", spec.gem_dir))
+rescue StandardError
+  puts "Not loading HerokuTool"
+end
 
+# respecifying Heroku tasks
 class Heroku
   module MyConfig
+    include HerokuTool::ThorUtils if defined?(HerokuTool)
+
     def platform_maintenance_urls(asset_host)
       time = Time.now.strftime("%Y%m%d-%H%M-%S")
       {
