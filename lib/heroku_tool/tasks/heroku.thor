@@ -348,12 +348,18 @@ class Heroku < Thor
       puts "if you have done some table-creating migrations that need tobe undone???"
     end
 
-    desc "grab --from SOURCE_TARGET", "capture and download dump from SOURCE_TARGET", hide: true
+    desc "capture --from SOURCE_TARGET", "capture a backup (remotely) from SOURCE_TARGET", hide: true
 
-    def grab
+    def capture
       source = lookup_heroku(options[:from])
       capture_cmd = "heroku pg:backups:capture -a #{source.heroku_app}"
       puts_and_system capture_cmd
+    end
+
+    desc "grab --from SOURCE_TARGET", "capture and download dump from SOURCE_TARGET", hide: true
+
+    def grab
+      invoke "capture", [], from: options[:from]
       invoke "download", [], from: options[:from]
     end
 
