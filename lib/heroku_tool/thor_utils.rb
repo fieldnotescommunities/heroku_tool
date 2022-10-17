@@ -1,13 +1,13 @@
 module HerokuTool
   module ThorUtils
-    protected
-
     def puts_and_system(cmd)
       puts cmd
       puts "-------------"
       system_with_clean_env cmd
       puts "-------------"
     end
+
+    protected
 
     def puts_and_exec(cmd)
       puts cmd
