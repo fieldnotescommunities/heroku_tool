@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0
+
+Dropped thor < 1.0
+
+## v0.3.0
+
+Works with thor <= 1.0
+
 ## v0.2.0
 
 Now assumes a default of main as the main branch.
