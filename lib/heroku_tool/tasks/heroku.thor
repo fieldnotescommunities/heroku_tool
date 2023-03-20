@@ -127,13 +127,20 @@ class Heroku < Thor
   class_option :verbose, type: :boolean, aliases: "v", default: true
   default_command :help
 
-  desc "configs", "collects configs as text files in tmp"
+  DEFAULT_CONFIGS_TO_DIR = "tmp"
+  desc "configs", "collects configs as text files"
+  method_option :to_dir, default: DEFAULT_CONFIGS_TO_DIR, desc: "Directory to collect them in", type: :string
 
   def configs
+    to_dir = File.expand_path(options[:to_dir] || DEFAULT_CONFIGS_TO_DIR)
+    unless Dir.exist?(to_dir)
+      puts "Doesn't exist (or isn't directory): #{to_dir}"
+      exit(-1)
+    end
     remote_targets = heroku_targets.targets.reject { |_name, target| target.local? }
     remote_targets.each_with_index do |(_name, target), index|
       print_output_progress(remote_targets, index)
-      cmd = "heroku config -s -a #{target.heroku_app} > tmp/config.#{target.heroku_app}.txt"
+      cmd = "heroku config -s -a #{target.heroku_app} > #{to_dir}/config.#{target.heroku_app}.txt"
       exec_with_clean_env(cmd)
     end
     print_output_progress(remote_targets)
