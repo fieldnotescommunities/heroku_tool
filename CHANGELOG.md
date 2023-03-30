@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.0
+
+Dropped psych < 4.0 and now working with psych >= 4.0
+
 ## v0.4.0
 
 Dropped thor < 1.0
