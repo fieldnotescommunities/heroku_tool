@@ -6,10 +6,10 @@ Gem::Specification.new do |spec|
   spec.name = "heroku_tool"
   spec.version = HerokuTool::VERSION
   spec.authors = ["Tim Diggins"]
-  spec.email = ["tim@red56.uk"]
+  spec.email = ["tim@fieldnotescommunities.com"]
 
   spec.summary = "Tool for configurable one-shot deployment and db managment with heroku and rails"
-  spec.homepage = "https://github.com/red56/heroku_tool"
+  spec.homepage = "https://github.com/fieldnotescommunities/heroku_tool"
   spec.license = "MIT"
 
   # Specify which files should be added to the gem when it is released.

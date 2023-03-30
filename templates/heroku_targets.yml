@@ -1,6 +1,6 @@
 # find `database_url` by running `heroku pg:info --app=APP_NAME`
 _defaults:
-  repository: https://github.com/red56/heroku_tool
+  repository: https://github.com/fieldnotescommunities/heroku_tool
   # what you are deploying to -- this should either be refs/head/main (the default) or refs/head/master
   heroku_target_ref: refs/heads/main
   # set to true if you are doing migrate as part of the heroku release phase, otherwise leave as false, or delete
