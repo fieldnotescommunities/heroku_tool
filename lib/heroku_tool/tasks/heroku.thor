@@ -199,11 +199,8 @@ class Heroku < Thor
     end
 
     puts_and_system %{heroku config:set #{Heroku::Configuration.app_revision_env_var}=$(git describe --always #{deploy_ref}) -a #{implied_target.heroku_app}}
-    if maintenance
-      maintenance_off
-    else
-      puts_and_system "heroku restart -a #{implied_target.heroku_app}"
-    end
+
+    maintenance_off if maintenance
     set_message(target_name, nil)
     Configuration.after_deploying(self, implied_target, deploy_ref_description)
     deploy_tracking(target_name, deploy_ref)
@@ -414,7 +411,6 @@ class Heroku < Thor
         heroku pg:copy #{implied_source.heroku_app}::#{implied_source.db_color} #{implied_target.db_color} -a #{implied_target.heroku_app} --confirm #{implied_target.heroku_app}
       )
       Configuration.after_sync_to(self, implied_target) unless options[:just_copy]
-      puts_and_system %(heroku restart -a #{implied_target.heroku_app})
       maintenance_off
     end
 
