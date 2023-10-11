@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.0
+
+Don't do unecessary restart after changing environment variables.
+
 ## v0.5.0
 
 Dropped psych < 4.0 and now working with psych >= 4.0
