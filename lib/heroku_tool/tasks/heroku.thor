@@ -21,7 +21,7 @@ class Heroku < Thor
       end
 
       def app_revision_env_var
-        raise "choose between APP_REVISION and COMMIT_HASH"
+        # alternatively if you want you can set this as APP_REVISION (for app-signal) or HEROKU_SLUG_COMMIT (see https://devcenter.heroku.com/articles/dyno-metadata)
       end
 
       def before_deploying(_instance, target, version, description: nil)
@@ -198,7 +198,12 @@ class Heroku < Thor
       puts_and_system "heroku run rake db:migrate -a #{implied_target.heroku_app}"
     end
 
-    puts_and_system %{heroku config:set #{Heroku::Configuration.app_revision_env_var}=$(git describe --always #{deploy_ref}) -a #{implied_target.heroku_app}}
+
+    app_revision_env_var = Heroku::Configuration.app_revision_env_var
+    if app_revision_env_var && app_revision_env_var != "HEROKU_SLUG_COMMIT"
+      # HEROKU_SLUG_COMMIT is automatically set by https://devcenter.heroku.com/articles/dyno-metadata
+      puts_and_system %{heroku config:set #{app_revision_env_var}=$(git describe --always #{deploy_ref}) -a #{implied_target.heroku_app}}
+    end
 
     maintenance_off if maintenance
     set_message(target_name, nil)
@@ -305,6 +310,10 @@ class Heroku < Thor
   desc "list_deployed TARGET (DEPLOY_REF)", "list what would be deployed to TARGET (optionally specify deploy_ref)"
 
   def list_deployed(target_name, deploy_ref = nil)
+    if Heroku::Configuration.app_revision_env_var.nil?
+      puts "Can't list deployed as Heroku::Configuration.app_revision_env_var is not set"
+      return
+    end
     self.implied_target = lookup_heroku(target_name)
     deploy_ref = check_deploy_ref(deploy_ref)
     puts "------------------------------"
