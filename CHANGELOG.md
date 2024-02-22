@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0
+
+Skip requiring users to set Heroku::Configuration.app_revision_env_var (typically COMMIT_HASH or a APP_REVISION).
+Skip setting this if you don't specify it.
+Skip setting this if you specify it as HEROKU_SLUG_COMMIT (see https://devcenter.heroku.com/articles/dyno-metadata)
+
 ## v0.6.0
 
 Don't do unecessary restart after changing environment variables.
