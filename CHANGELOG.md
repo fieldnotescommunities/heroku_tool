@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.1
+
+- update for changes to heroku cli in heroku 9.0 (#12)
+  `heroku pg:backups:public-url` -> `heroku pg:backups:url`
+
 ## v0.7.0
 
 Skip requiring users to set Heroku::Configuration.app_revision_env_var (typically COMMIT_HASH or a APP_REVISION).
