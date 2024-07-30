@@ -380,7 +380,7 @@ class Heroku < Thor
 
     def download
       source = lookup_heroku(options[:from])
-      download_cmd = "curl -o #{source.dump_filename} `heroku pg:backups:public-url -a #{source.heroku_app}`"
+      download_cmd = "curl -o #{source.dump_filename} `heroku pg:backups:url -a #{source.heroku_app}`"
       puts_and_system download_cmd
     end
 
