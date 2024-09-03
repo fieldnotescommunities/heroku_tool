@@ -391,12 +391,8 @@ class Heroku < Thor
     def from_dump
       invoke "warn", [], from: options[:from]
       source = lookup_heroku(options[:from])
-      rails_env = ENV["RAILS_ENV"] || "development"
-      db_config = HerokuTool::DbConfiguration.new.config[rails_env]
-      db_username = db_config["username"]
-      db = db_config["database"]
-      db_username_params = db_username.blank? && "" || "-U #{db_username}"
-      puts_and_system "pg_restore --verbose --clean --no-acl --no-owner -h localhost #{db_username_params} -d #{db} #{source.dump_filename}"
+      db_config = HerokuTool::DbConfiguration.new
+      puts_and_system "pg_restore --verbose --clean --no-acl --no-owner -h localhost #{db_config.user_arg} -d #{db_config.database} #{source.dump_filename}"
       Configuration.after_sync_down(self) unless options[:just_restore]
     end
 

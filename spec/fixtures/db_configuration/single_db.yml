@@ -1,0 +1,26 @@
+development:
+  adapter: postgresql
+  database: someapp_development
+  username: the-dev-user
+  password:
+  host: localhost
+  encoding: utf8
+  pool: 5
+
+test:
+  adapter: postgresql
+  database: someapp_test
+  username: the-test-user
+  password:
+  host: localhost
+  encoding: utf8
+
+production: &production
+  adapter: postgresql
+  url:  postgres://some-user@localhost/someapp_production
+  pool: 5
+  prepared_statements: false
+  encoding: utf8
+
+staging:
+  <<: *production
