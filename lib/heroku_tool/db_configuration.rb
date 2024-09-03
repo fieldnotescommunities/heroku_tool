@@ -1,9 +1,19 @@
 # NB need to specify a username in the database.yml if you want to use any of these commands
 module HerokuTool
   class DbConfiguration
-    def config
-      db_config_from_file = ERB.new(File.read("config/database.yml")).result
-      @config ||= YAML.safe_load(db_config_from_file, permitted_classes: [], permitted_symbols: [], aliases: true)
+    attr_reader :config_all, :config_env
+
+    def initialize(filepath: "config/database.yml", rails_env: ENV["RAILS_ENV"] || "development")
+      db_config_from_file = ERB.new(File.read(filepath)).result
+      @config_all = YAML.safe_load(db_config_from_file, permitted_classes: [], permitted_symbols: [], aliases: true)
+      config_env = @config_all[rails_env]
+      @config_env = if config_env["database"].is_a?(String)
+                      config_env
+                    elsif config_env.key?("primary")
+                      config_env["primary"]
+                    else
+                      config_env.values.first
+                    end
     end
 
     def generate_drop_tables_sql
@@ -12,22 +22,13 @@ module HerokuTool
     end
 
     def user_arg
-      username = db_config["username"]
+      username = config_env["username"]
       username.present? && "-U #{username}" || ""
     end
 
     def database
-      db_config["database"]
+      config_env["database"]
     end
 
-    private
-
-    def db_config
-      config[env]
-    end
-
-    def env
-      ENV["RAILS_ENV"] || "development"
-    end
   end
 end
