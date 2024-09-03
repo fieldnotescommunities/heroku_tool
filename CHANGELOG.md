@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.0
+
+- allow for multiple databases in configuration
+
 ## v0.7.1
 
 - update for changes to heroku cli in heroku 9.0 (#12)
