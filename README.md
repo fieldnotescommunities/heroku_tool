@@ -107,11 +107,10 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 To install this gem onto your local machine, run `bundle exec rake install`.
 
 
-Ensure standards before PR:
+Ensure standards (and other rubocop) before PR:
 
-    bundle exec standardrb --fix
+    bundle exec rubocop -a
 
-(TODO: enforce this or rubocop)
 
 ## Release
 
