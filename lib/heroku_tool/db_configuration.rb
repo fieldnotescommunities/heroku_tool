@@ -8,12 +8,12 @@ module HerokuTool
       @config_all = YAML.safe_load(db_config_from_file, permitted_classes: [], permitted_symbols: [], aliases: true)
       config_env = @config_all[rails_env]
       @config_env = if config_env["database"].is_a?(String)
-                      config_env
-                    elsif config_env.key?("primary")
-                      config_env["primary"]
-                    else
-                      config_env.values.first
-                    end
+        config_env
+      elsif config_env.key?("primary")
+        config_env["primary"]
+      else
+        config_env.values.first
+      end
     end
 
     def generate_drop_tables_sql
@@ -29,6 +29,5 @@ module HerokuTool
     def database
       config_env["database"]
     end
-
   end
 end

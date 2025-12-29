@@ -26,7 +26,18 @@ RSpec.describe "Heroku thor" do
 
   describe "configs" do
     let(:heroku_thor) { Heroku.new }
-    before { allow(heroku_thor).to receive(:heroku_targets).and_return(standard_targets) }
+
+    around do |example|
+      example.run
+    rescue SystemExit
+      puts "!!!system exit called"
+    end
+
+    before do
+      Dir.mkdir("tmp") unless Dir.exist?("tmp")
+      allow(heroku_thor).to receive(:heroku_targets).and_return(standard_targets)
+    end
+
     it "calls once per target" do
       expect(heroku_thor).to receive(:exec_with_clean_env).with(start_with("heroku config -s -a my-heroku-app"))
       expect(heroku_thor).to receive(:exec_with_clean_env).with(start_with("heroku config -s -a my-heroku-staging-app"))

@@ -198,7 +198,6 @@ class Heroku < Thor
       puts_and_system "heroku run rake db:migrate -a #{implied_target.heroku_app}"
     end
 
-
     app_revision_env_var = Heroku::Configuration.app_revision_env_var
     if app_revision_env_var && app_revision_env_var != "HEROKU_SLUG_COMMIT"
       # HEROKU_SLUG_COMMIT is automatically set by https://devcenter.heroku.com/articles/dyno-metadata
@@ -301,6 +300,7 @@ class Heroku < Thor
   end
 
   include HerokuTool::ThorUtils
+
   desc "set_message TARGET (MESSAGE)", "set message (no-op by default)"
 
   def set_message(target_name, message = nil)
@@ -345,6 +345,7 @@ class Heroku < Thor
 
   class Sync < Thor
     include Shared
+
     class_option :from, type: :string, desc: "source target (production, staging...)", required: true, aliases: "f"
 
     desc "down --from SOURCE_TARGET", "syncs db down from SOURCE_TARGET | thor heroku:sync -f production"
@@ -462,6 +463,6 @@ class Heroku < Thor
   def print_output_progress(remote_targets, index = nil)
     index ||= remote_targets.length
     remainder = remote_targets.length - index
-    print "\routputting configs to tmp/config.*.txt: #{index}/#{remote_targets.count} ▕#{'██' * index}#{"  " * remainder}▏\r"
+    print "\routputting configs to tmp/config.*.txt: #{index}/#{remote_targets.count} ▕#{"██" * index}#{"  " * remainder}▏\r"
   end
 end
