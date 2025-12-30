@@ -58,10 +58,16 @@ class Heroku < Thor
   module Shared
     attr_accessor :implied_source, :implied_target
 
-    include HerokuTool::ThorUtils
+    def included(base) #:nodoc:
+      super(base)
+      base.extend ClassMethods
+      base.include HerokuTool::ThorUtils
+    end
 
-    def self.exit_on_failure?
-      true
+    class ClassMethods
+      def exit_on_failure?
+        true
+      end
     end
 
     def lookup_heroku_staging(staging_target_name)
