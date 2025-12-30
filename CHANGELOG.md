@@ -2,9 +2,8 @@
 
 ## v0.9.0
 
-BREAKING CHANGES:
-
-- drop set_message for simplicity - you can do that as part of Configuration.before_deploying and Configuration.after_deploying
+- BREAKING CHANGE: drop set_message for simplicity - you can do that as part of Configuration.before_deploying and Configuration.after_deploying
+- don't continue if git push fails (output AND return status and don't do migration, deployment tracking etc)
 
 ## v0.8.0
 
