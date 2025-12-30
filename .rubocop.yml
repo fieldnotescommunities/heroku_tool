@@ -42,5 +42,8 @@ RSpec/MultipleExpectations:
 RSpec/NamedSubject:
   Enabled: false
 
+RSpec/NestedGroups:
+  Enabled: false
+
 RSpec/StubbedMock:
   Enabled: false

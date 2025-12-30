@@ -178,8 +178,12 @@ class Heroku < Thor
     check_deploy_ref(deploy_ref)
     with_maintenance = options[:maintenance].nil? && migrate_outside_of_release_phase? || options[:maintenance] || false
     deploy_ref ||= target.deploy_ref
-    commander.deploy(deploy_ref, with_maintenance: with_maintenance)
-    deploy_tracking(target_name, deploy_ref)
+    success = commander.deploy(deploy_ref, with_maintenance: with_maintenance)
+    if success
+      deploy_tracking(target_name, deploy_ref)
+    else
+      exit(-1)
+    end
   end
 
   desc "maintenance ON|OFF", "turn maintenance mode on or off"

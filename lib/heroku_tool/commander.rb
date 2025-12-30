@@ -15,7 +15,9 @@ module HerokuTool
 
       output_to_be_deployed(deploy_ref)
       Heroku::Configuration.before_deploying(self, target, deploy_ref_description)
-      puts_and_system "git push -f #{target.git_remote} #{deploy_ref || target}^{}:#{target.heroku_target_ref}"
+      successful_push = puts_and_system "git push -f #{target.git_remote} #{deploy_ref || target}^{}:#{target.heroku_target_ref}"
+
+      return false unless successful_push
 
       maintenance_on if with_maintenance
       if migrate_outside_of_release_phase?
@@ -30,6 +32,7 @@ module HerokuTool
 
       maintenance_off if with_maintenance
       Heroku::Configuration.after_deploying(self, target, deploy_ref_description)
+      true
     end
 
     def maintenance_on
@@ -58,11 +61,17 @@ module HerokuTool
       puts "------------------------------"
     end
 
+    # @return [Boolean] true if the command was successful
     def puts_and_system(cmd)
       puts cmd
       puts "-------------"
-      system_with_clean_env cmd
-      puts "-------------"
+      system_with_clean_env(cmd).tap do |result|
+        if result
+          puts "-------------"
+        else
+          puts "❌❌❌❌❌❌❌❌❌❌"
+        end
+      end
     end
 
     def puts_and_exec(cmd)

@@ -26,7 +26,7 @@ RSpec.describe "Heroku thor" do
 
   shared_context "with collected system calls" do
     let(:system_calls) { [] }
-
+    let(:failure_matcher) { /no such match/ }
     around do |example|
       example.run
     rescue SystemExit
@@ -37,7 +37,11 @@ RSpec.describe "Heroku thor" do
       allow(HerokuTool::HerokuTargets).to receive(:from_file).and_return(targets)
       allow_any_instance_of(Object).to receive(:system) do |_instance, *whatever| # rubocop:disable RSpec/AnyInstance
         system_calls << whatever.join(" ")
-        true
+        if whatever.join(" ").match(failure_matcher)
+          false
+        else
+          true
+        end
       end
       allow_any_instance_of(Object).to receive(:`) do |_instance, *whatever| # rubocop:disable RSpec/AnyInstance
         system_calls << whatever.join(" ")
@@ -47,9 +51,10 @@ RSpec.describe "Heroku thor" do
   end
 
   describe "configs" do
+    subject { Heroku.start(["configs"]) }
+
     include_context "with collected system calls"
 
-    subject{ Heroku.start(["configs"]) }
     around do |example|
       example.run
     rescue SystemExit
@@ -91,7 +96,24 @@ RSpec.describe "Heroku thor" do
       it "should call before and after hooks" do
         expect(Heroku::Configuration).to receive(:before_deploying)
         expect(Heroku::Configuration).to receive(:after_deploying)
+        expect(Heroku::Configuration).to receive(:notify_of_deploy_tracking).and_call_original
         expect { subject }.to output.to_stdout
+      end
+
+      context "when git push fails" do
+        let(:failure_matcher) { /git push/ }
+
+        it "should not call after hooks" do
+          expect(Heroku::Configuration).to receive(:before_deploying)
+          expect(Heroku::Configuration).not_to receive(:after_deploying)
+          expect(Heroku::Configuration).not_to receive(:notify_of_deploy_tracking)
+          expect { subject }.to output.to_stdout
+          expect(system_calls).not_to be_empty
+          expect(system_calls.length).to eq(3)
+          expect(system_calls.shift).to eq "git describe origin/main"
+          expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
+          expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        end
       end
     end
 
@@ -124,7 +146,24 @@ RSpec.describe "Heroku thor" do
       it "should call before and after hooks" do
         expect(Heroku::Configuration).to receive(:before_deploying)
         expect(Heroku::Configuration).to receive(:after_deploying)
+        expect(Heroku::Configuration).to receive(:notify_of_deploy_tracking).and_call_original
         expect { subject }.to output.to_stdout
+      end
+
+      context "when git push fails" do
+        let(:failure_matcher) { /git push/ }
+
+        it "should not call after hooks" do
+          expect(Heroku::Configuration).to receive(:before_deploying)
+          expect(Heroku::Configuration).not_to receive(:after_deploying)
+          expect(Heroku::Configuration).not_to receive(:notify_of_deploy_tracking)
+          expect { subject }.to output.to_stdout
+          expect(system_calls).not_to be_empty
+          expect(system_calls.length).to eq(3)
+          expect(system_calls.shift).to eq "git describe origin/main"
+          expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
+          expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        end
       end
     end
 
