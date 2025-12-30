@@ -23,6 +23,11 @@ RSpec.describe "Heroku thor" do
     VALID
   }
   let(:targets) { HerokuTool::HerokuTargets.from_string(targets_yml) }
+  let(:configuration) { HerokuTool::Configuration.new }
+
+  before do
+    allow(HerokuTool::Configuration).to receive(:new).and_return(configuration)
+  end
 
   shared_context "with collected system calls" do
     let(:system_calls) { [] }
@@ -66,7 +71,7 @@ RSpec.describe "Heroku thor" do
     end
 
     it "calls once per target" do
-      subject
+      expect{subject}.to output.to_stdout
       expect(system_calls.length).to eq(2)
       expect(system_calls.shift).to start_with("heroku config -s -a my-heroku-app")
       expect(system_calls.shift).to start_with("heroku config -s -a my-heroku-staging-app")
@@ -94,9 +99,9 @@ RSpec.describe "Heroku thor" do
       end
 
       it "should call before and after hooks" do
-        expect(Heroku::Configuration).to receive(:before_deploying)
-        expect(Heroku::Configuration).to receive(:after_deploying)
-        expect(Heroku::Configuration).to receive(:notify_of_deploy_tracking).and_call_original
+        expect(configuration).to receive(:before_deploying)
+        expect(configuration).to receive(:after_deploying)
+        expect(configuration).to receive(:notify_of_deploy_tracking).and_call_original
         expect { subject }.to output.to_stdout
       end
 
@@ -104,9 +109,9 @@ RSpec.describe "Heroku thor" do
         let(:failure_matcher) { /git push/ }
 
         it "should not call after hooks" do
-          expect(Heroku::Configuration).to receive(:before_deploying)
-          expect(Heroku::Configuration).not_to receive(:after_deploying)
-          expect(Heroku::Configuration).not_to receive(:notify_of_deploy_tracking)
+          expect(configuration).to receive(:before_deploying)
+          expect(configuration).not_to receive(:after_deploying)
+          expect(configuration).not_to receive(:notify_of_deploy_tracking)
           expect { subject }.to output.to_stdout
           expect(system_calls).not_to be_empty
           expect(system_calls.length).to eq(3)
@@ -144,9 +149,9 @@ RSpec.describe "Heroku thor" do
       end
 
       it "should call before and after hooks" do
-        expect(Heroku::Configuration).to receive(:before_deploying)
-        expect(Heroku::Configuration).to receive(:after_deploying)
-        expect(Heroku::Configuration).to receive(:notify_of_deploy_tracking).and_call_original
+        expect(configuration).to receive(:before_deploying)
+        expect(configuration).to receive(:after_deploying)
+        expect(configuration).to receive(:notify_of_deploy_tracking).and_call_original
         expect { subject }.to output.to_stdout
       end
 
@@ -154,9 +159,9 @@ RSpec.describe "Heroku thor" do
         let(:failure_matcher) { /git push/ }
 
         it "should not call after hooks" do
-          expect(Heroku::Configuration).to receive(:before_deploying)
-          expect(Heroku::Configuration).not_to receive(:after_deploying)
-          expect(Heroku::Configuration).not_to receive(:notify_of_deploy_tracking)
+          expect(configuration).to receive(:before_deploying)
+          expect(configuration).not_to receive(:after_deploying)
+          expect(configuration).not_to receive(:notify_of_deploy_tracking)
           expect { subject }.to output.to_stdout
           expect(system_calls).not_to be_empty
           expect(system_calls.length).to eq(3)

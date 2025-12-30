@@ -3,59 +3,11 @@
 require "thor"
 require_relative "../db_configuration"
 require_relative "../heroku_targets"
-require File.expand_path("../commander", __dir__)
+require_relative "../commander"
+require_relative "../configuration"
 
-# TODO: rename Heroku to HerokuTool::HerokuThor or similar and set namespace to :heroku
 class Heroku < Thor
-  module Configuration
-    class << self
-      def platform_maintenance_urls(asset_host)
-        time = Time.now.strftime("%Y%m%d-%H%M-%S")
-        {
-          ERROR_PAGE_URL: "https://#{asset_host}/platform_error/#{time}",
-          MAINTENANCE_PAGE_URL: "https://#{asset_host}/platform_maintenance/#{time}"
-        }
-      end
-
-      def maintenance_mode_env_var
-        "X_HEROKU_TOOL_MAINTENANCE_MODE"
-      end
-
-      def app_revision_env_var
-        # alternatively if you want you can set this as APP_REVISION (for app-signal) or HEROKU_SLUG_COMMIT (see https://devcenter.heroku.com/articles/dyno-metadata)
-      end
-
-      def before_deploying(_instance, target, version, description: nil)
-        puts "about to deploy #{version} to #{target.name}"
-        puts "         #{description}" if description
-      end
-
-      def after_deploying(_instance, target, version, description: nil)
-        puts "deployed #{version} to #{target.name}"
-        puts "         #{description}" if description
-      end
-
-      def notify_of_deploy_tracking(instance, deploy_ref:, revision:)
-        if ENV["BUGSNAG_API_KEY"].present?
-          instance.notify_bugsnag_of_deploy_tracking(deploy_ref:, revision:)
-        else
-          puts "can't notify of deploy tracking: env var not present: BUGSNAG_API_KEY"
-        end
-      end
-
-      def after_sync_down(instance)
-        # could add source ?
-        instance.puts_and_system "rails db:migrate"
-        instance.puts_and_system "rails db:test:prepare"
-      end
-
-      def after_sync_to(instance, target)
-        # could add source ?
-        instance.puts_and_system %(heroku run rails db:migrate -a #{target.heroku_app})
-      end
-    end
-  end
-
+  namespace "heroku"
   module Shared
     attr_accessor :implied_source
     # @return [HerokuTool::HerokuTarget]
@@ -63,10 +15,15 @@ class Heroku < Thor
 
     # @return [HerokuTool::Commander] commander for target
     def commander
-      @commander ||= HerokuTool::Commander.new(target, **options)
+      @commander ||= ::HerokuTool::Commander.new(target, configuration: configuration, **options.symbolize_keys)
     end
 
-    def self.included(base) #:nodoc:
+    def configuration
+      ::HerokuTool::Configuration.new
+    end
+
+    def self.included(base)
+      #:nodoc:
       super
       base.extend ClassMethods
     end
@@ -106,7 +63,7 @@ class Heroku < Thor
     end
 
     def heroku_targets
-      @heroku_targets ||= HerokuTool::HerokuTargets.from_file(File.expand_path("config/heroku_targets.yml"))
+      @heroku_targets ||= ::HerokuTool::HerokuTargets.from_file(File.expand_path("config/heroku_targets.yml"))
     end
 
     protected
@@ -209,7 +166,7 @@ class Heroku < Thor
       puts "asset host (ASSET_HOST) not found on #{target.heroku_app}"
       return
     end
-    url_hash = Configuration.platform_maintenance_urls(asset_host)
+    url_hash = configuration.platform_maintenance_urls(asset_host)
     url_hash.each do |_env, url|
       puts_and_system "open #{url}"
     end
@@ -229,7 +186,7 @@ class Heroku < Thor
 
     def notify_of_deploy_tracking(deploy_ref)
       revision = `git log -1 #{deploy_ref || target.deploy_ref} --pretty=format:%H`
-      Heroku::Configuration.notify_of_deploy_tracking(
+      configuration.notify_of_deploy_tracking(
         self,
         deploy_ref: deploy_ref,
         revision: revision
@@ -275,8 +232,8 @@ class Heroku < Thor
   desc "to_be_deployed TARGET (SINCE_DEPLOY_REF)", "list what would be deployed to TARGET (optionally specify SINCE_DEPLOY_REF)"
 
   def to_be_deployed(target_name, since_deploy_ref = nil)
-    if Heroku::Configuration.app_revision_env_var.nil?
-      puts "Can't list deployed as Heroku::Configuration.app_revision_env_var is not set"
+    if configuration.app_revision_env_var.nil?
+      puts "Can't list deployed as Configuration.app_revision_env_var is not set"
       return
     end
     @target = lookup_heroku(target_name)
@@ -305,6 +262,7 @@ class Heroku < Thor
   end
 
   class Sync < Thor
+    namespace "heroku:db"
     include Shared
 
     class_option :from, type: :string, desc: "source target (production, staging...)", required: true, aliases: "f"
@@ -353,9 +311,9 @@ class Heroku < Thor
     def from_dump
       invoke "warn", [], from: options[:from]
       source = lookup_heroku(options[:from])
-      db_config = HerokuTool::DbConfiguration.new
+      db_config = ::HerokuTool::DbConfiguration.new
       puts_and_system "pg_restore --verbose --clean --no-acl --no-owner -h localhost #{db_config.user_arg} -d #{db_config.database} #{source.dump_filename}"
-      Configuration.after_sync_down(self) unless options[:just_restore]
+      configuration.after_sync_down(self) unless options[:just_restore]
     end
 
     desc "dump_to_tmp", "dump to tmp directory"
@@ -377,7 +335,7 @@ class Heroku < Thor
       puts_and_system %(
         heroku pg:copy #{implied_source.heroku_app}::#{implied_source.db_color} #{target.db_color} -a #{target.heroku_app} --confirm #{target.heroku_app}
       )
-      Configuration.after_sync_to(self, target) unless options[:just_copy]
+      configuration.after_sync_to(self, target) unless options[:just_copy]
       maintenance_off
     end
 
@@ -386,7 +344,7 @@ class Heroku < Thor
     def dump_local(dumpfilepath)
       puts "dumping postgres to #{dumpfilepath}"
       rails_env = ENV["RAILS_ENV"] || "development"
-      db_config = HerokuTool::DbConfiguration.new.config[rails_env]
+      db_config = ::HerokuTool::DbConfiguration.new.config[rails_env]
       db_username = db_config["username"]
       db = db_config["database"]
       system_with_clean_env "pg_dump --verbose --clean --no-acl --no-owner -h localhost -U #{db_username} --format=c #{db} > #{dumpfilepath}"
@@ -394,13 +352,14 @@ class Heroku < Thor
   end
 
   class Db < Thor
+    namespace "heroku:db"
     include Shared
 
     desc "drop_all_tables on STAGING_TARGET", "drop all tables on STAGING_TARGET"
 
     def drop_all_tables(staging_target_name)
       @target = lookup_heroku_staging(staging_target_name)
-      generate_drop_tables_sql = `#{HerokuTool::DbConfiguration.new.generate_drop_tables_sql}`
+      generate_drop_tables_sql = `#{::HerokuTool::DbConfiguration.new.generate_drop_tables_sql}`
       cmd_string = %(heroku pg:psql -a #{target.heroku_app} -c "#{generate_drop_tables_sql}")
       puts_and_system(cmd_string)
     end
