@@ -49,6 +49,14 @@ class Heroku
     # def after_deploying(instance, target, version)
     #   # override
     # end
+    #
+    # def before_deploying(instance, target, version)
+    #   # override
+    # end
+    #
+    # def after_deploying(instance, target, version)
+    #   # override
+    # end
   end
 
   module Configuration

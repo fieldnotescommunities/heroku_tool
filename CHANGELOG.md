@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.0
+
+BREAKING CHANGES:
+
+- drop set_message for simplicity - you can do that as part of Configuration.before_deploying and Configuration.after_deploying
+
 ## v0.8.0
 
 - allow for multiple databases in configuration

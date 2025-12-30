@@ -3,8 +3,9 @@
 require "thor"
 require_relative "../db_configuration"
 require_relative "../heroku_targets"
-require_relative "../thor_utils"
+require File.expand_path("../commander", __dir__)
 
+# TODO: rename Heroku to HerokuTool::HerokuThor or similar and set namespace to :heroku
 class Heroku < Thor
   module Configuration
     class << self
@@ -34,9 +35,9 @@ class Heroku < Thor
         puts "         #{description}" if description
       end
 
-      def notify_of_deploy_tracking(running_thor_task, release_stage:, revision:, revision_describe:, repository:, target:, target_name:, deploy_ref:)
+      def notify_of_deploy_tracking(instance, deploy_ref:, revision:)
         if ENV["BUGSNAG_API_KEY"].present?
-          running_thor_task.notify_bugsnag_of_deploy_tracking(deploy_ref, release_stage, repository, revision, revision_describe, target_name)
+          instance.notify_bugsnag_of_deploy_tracking(deploy_ref:, revision:)
         else
           puts "can't notify of deploy tracking: env var not present: BUGSNAG_API_KEY"
         end
@@ -56,13 +57,18 @@ class Heroku < Thor
   end
 
   module Shared
-    attr_accessor :implied_source, :implied_target
+    attr_accessor :implied_source
+    # @return [HerokuTool::HerokuTarget]
+    attr_reader :target
+
+    # @return [HerokuTool::Commander] commander for target
+    def commander
+      @commander ||= HerokuTool::Commander.new(target, **options)
+    end
 
     def self.included(base) #:nodoc:
-      p(at: :included, base: base)
       super
       base.extend ClassMethods
-      base.include HerokuTool::ThorUtils
     end
 
     module ClassMethods
@@ -79,7 +85,7 @@ class Heroku < Thor
       heroku_targets.targets[target_name] || raise_missing_target(target_name, false)
     end
 
-    def check_deploy_ref(deploy_ref, target = implied_target)
+    def check_deploy_ref(deploy_ref)
       if deploy_ref && deploy_ref[0] == "-"
         raise Thor::Error, "Invalid deploy ref '#{deploy_ref}'"
       end
@@ -105,28 +111,8 @@ class Heroku < Thor
 
     protected
 
-    def deploy_message(deploy_ref_describe, target = implied_target)
-      downtime = migrate_outside_of_release_phase?(target) ? "👷 There will be a very short maintenance downtime" : ""
-      message = <<-DEPLOY_MESSAGE
-     Deploying #{target.display_name} #{deploy_ref_describe}.
-     #{downtime} (in less than a minute from now).
-      DEPLOY_MESSAGE
-      message.gsub(/(\s|\n)+/, " ")
-    end
-
-    def migrate_outside_of_release_phase?(target = implied_target)
-      target.migrate_in_release_phase ? false : options[:migrate]
-    end
-
-    def maintenance_on(target = implied_target)
-      puts_and_system "heroku maintenance:on -a #{target.heroku_app}"
-      puts_and_system "heroku config:set #{Heroku::Configuration.maintenance_mode_env_var}=true -a #{target.heroku_app}"
-    end
-
-    def maintenance_off(target = implied_target)
-      puts_and_system "heroku maintenance:off -a #{target.heroku_app}"
-      puts_and_system "heroku config:unset #{Heroku::Configuration.maintenance_mode_env_var} -a #{target.heroku_app}"
-    end
+    delegate :deploy_ref_describe, :maintenance_off, :maintenance_on, :output_to_be_deployed, :migrate_outside_of_release_phase?, :puts_and_exec, :puts_and_system,
+      to: :commander
   end
 
   include Shared
@@ -188,32 +174,11 @@ class Heroku < Thor
   method_option :maintenance, default: nil, desc: "Maintenance step", type: :boolean
 
   def deploy(target_name, deploy_ref = nil)
-    self.implied_target = lookup_heroku(target_name)
-    deploy_ref = check_deploy_ref(deploy_ref, implied_target)
-    deploy_ref_description = deploy_ref_describe(deploy_ref)
-    maintenance = options[:maintenance].nil? && migrate_outside_of_release_phase?(implied_target) || options[:maintenance] || false
-    puts "Deploy #{deploy_ref_description} to #{implied_target} with migrate=#{implied_target.migrate_in_release_phase ? "(during release phase)" : migrate_outside_of_release_phase?(implied_target)} maintenance=#{maintenance} "
-
-    invoke :list_deployed, [target_name, deploy_ref], {}
-    message = deploy_message(deploy_ref_description)
-    Configuration.before_deploying(self, implied_target, deploy_ref_description)
-    set_message(target_name, message)
-    puts_and_system "git push -f #{implied_target.git_remote} #{deploy_ref}^{}:#{implied_target.heroku_target_ref}"
-
-    maintenance_on if maintenance
-    if migrate_outside_of_release_phase?
-      puts_and_system "heroku run rails db:migrate -a #{implied_target.heroku_app}"
-    end
-
-    app_revision_env_var = Heroku::Configuration.app_revision_env_var
-    if app_revision_env_var && app_revision_env_var != "HEROKU_SLUG_COMMIT"
-      # HEROKU_SLUG_COMMIT is automatically set by https://devcenter.heroku.com/articles/dyno-metadata
-      puts_and_system %{heroku config:set #{app_revision_env_var}=$(git describe --always #{deploy_ref}) -a #{implied_target.heroku_app}}
-    end
-
-    maintenance_off if maintenance
-    set_message(target_name, nil)
-    Configuration.after_deploying(self, implied_target, deploy_ref_description)
+    @target = lookup_heroku(target_name)
+    check_deploy_ref(deploy_ref)
+    with_maintenance = options[:maintenance].nil? && migrate_outside_of_release_phase? || options[:maintenance] || false
+    deploy_ref ||= target.deploy_ref
+    commander.deploy(deploy_ref, with_maintenance: with_maintenance)
     deploy_tracking(target_name, deploy_ref)
   end
 
@@ -221,7 +186,7 @@ class Heroku < Thor
   method_option :target_name, aliases: "a", desc: "Target (app or remote)"
 
   def maintenance(on_or_off)
-    self.implied_target = lookup_heroku(options[:target_name])
+    @target = lookup_heroku(options[:target_name])
     case on_or_off.upcase
     when "ON"
       maintenance_on
@@ -235,9 +200,9 @@ class Heroku < Thor
   desc "set_urls TARGET", "set and cache the error and maintenance page urls for TARGET"
 
   def set_urls(target_name)
-    self.implied_target = lookup_heroku(target_name)
+    @target = lookup_heroku(target_name)
     unless asset_host.presence
-      puts "asset host (ASSET_HOST) not found on #{implied_target.heroku_app}"
+      puts "asset host (ASSET_HOST) not found on #{target.heroku_app}"
       return
     end
     url_hash = Configuration.platform_maintenance_urls(asset_host)
@@ -245,35 +210,36 @@ class Heroku < Thor
       puts_and_system "open #{url}"
     end
     puts_and_system(
-      "heroku config:set #{url_hash.map { |e, u| "#{e}=#{u}" }.join(" ")} -a #{implied_target.heroku_app}"
+      "heroku config:set #{url_hash.map { |e, u| "#{e}=#{u}" }.join(" ")} -a #{target.heroku_app}"
     )
   end
 
   no_commands do
-    def asset_host(target = implied_target)
-      if target == implied_target
-        @asset_host ||= fetch_asset_host(target)
-      else
-        fetch_asset_host(target)
-      end
+    def asset_host
+      @asset_host ||= fetch_asset_host
     end
 
     def get_config_env(target, env_var)
       puts_and_exec("heroku config:get #{env_var} -a #{target.heroku_app}").strip.presence
     end
 
-    def deploy_ref_describe(deploy_ref)
-      `git describe #{deploy_ref}`.strip
+    def notify_of_deploy_tracking(deploy_ref)
+      revision = `git log -1 #{deploy_ref || target.deploy_ref} --pretty=format:%H`
+      Heroku::Configuration.notify_of_deploy_tracking(
+        self,
+        deploy_ref: deploy_ref,
+        revision: revision
+      )
     end
 
-    def notify_bugsnag_of_deploy_tracking(deploy_ref, release_stage, repository, revision, revision_describe, target_name)
+    def notify_bugsnag_of_deploy_tracking(deploy_ref:, revision:)
       api_key = ENV["BUGSNAG_API_KEY"]
       data = %W[
         apiKey=#{api_key}
-        releaseStage=#{release_stage}
-        repository=#{repository}
+        releaseStage=#{target.trackable_release_stage}
+        repository=#{target.repository}
         revision=#{revision}
-        appVersion=#{revision_describe}
+        appVersion=#{deploy_ref_describe(deploy_ref)}
       ].join("&")
       if api_key.blank?
         puts "\n" + ("*" * 80) + "\n"
@@ -281,7 +247,7 @@ class Heroku < Thor
         puts command
         puts "\n" + ("*" * 80) + "\n"
         puts "NB: can't notify unless you specify BUGSNAG_API_KEY and rerun"
-        puts "  thor heroku:deploy_tracking #{target_name} #{deploy_ref}"
+        puts "  thor heroku:deploy_tracking #{target.name} #{deploy_ref}"
       else
         puts_and_system "curl -d \"#{data}\" http://notify.bugsnag.com/deploy"
       end
@@ -291,22 +257,10 @@ class Heroku < Thor
   desc "deploy_tracking TARGET (REF)", "set deploy tracking for TARGET and REF (used by deploy)"
 
   def deploy_tracking(target_name, deploy_ref = nil)
-    self.implied_target = lookup_heroku(target_name)
-    deploy_ref = check_deploy_ref(deploy_ref)
-    revision = `git log -1 #{deploy_ref} --pretty=format:%H`
-    Heroku::Configuration.notify_of_deploy_tracking(
-      self,
-      deploy_ref: deploy_ref,
-      release_stage: implied_target.trackable_release_stage,
-      revision: revision,
-      target: implied_target,
-      target_name: target_name,
-      revision_describe: deploy_ref_describe(deploy_ref),
-      repository: implied_target.repository
-    )
+    @target = lookup_heroku(target_name)
+    check_deploy_ref(deploy_ref)
+    notify_of_deploy_tracking(deploy_ref)
   end
-
-  include HerokuTool::ThorUtils
 
   desc "set_message TARGET (MESSAGE)", "set message (no-op by default)"
 
@@ -314,20 +268,16 @@ class Heroku < Thor
     # no-op -- define as override
   end
 
-  desc "list_deployed TARGET (DEPLOY_REF)", "list what would be deployed to TARGET (optionally specify deploy_ref)"
+  desc "to_be_deployed TARGET (SINCE_DEPLOY_REF)", "list what would be deployed to TARGET (optionally specify SINCE_DEPLOY_REF)"
 
-  def list_deployed(target_name, deploy_ref = nil)
+  def to_be_deployed(target_name, since_deploy_ref = nil)
     if Heroku::Configuration.app_revision_env_var.nil?
       puts "Can't list deployed as Heroku::Configuration.app_revision_env_var is not set"
       return
     end
-    self.implied_target = lookup_heroku(target_name)
-    deploy_ref = check_deploy_ref(deploy_ref)
-    puts "------------------------------"
-    puts " Deploy to #{implied_target}:"
-    puts "------------------------------"
-    system_with_clean_env "git --no-pager log $(heroku config:get #{Heroku::Configuration.app_revision_env_var} -a #{implied_target.heroku_app})..#{deploy_ref}"
-    puts "------------------------------"
+    @target = lookup_heroku(target_name)
+    check_deploy_ref(since_deploy_ref)
+    output_to_be_deployed(since_deploy_ref)
   end
 
   desc "about (TARGET)", "Describe available targets or one specific target"
@@ -339,12 +289,12 @@ class Heroku < Thor
         puts " * #{key} (#{target})"
       end
     else
-      self.implied_target = lookup_heroku(target_name)
+      @target = lookup_heroku(target_name)
       puts "Target #{target_name}:"
-      puts " * display_name: #{implied_target.display_name}"
-      puts " * heroku_app:   #{implied_target.heroku_app}"
-      puts " * git_remote:   #{implied_target.git_remote}"
-      puts " * deploy_ref:   #{implied_target.deploy_ref}"
+      puts " * display_name: #{target.display_name}"
+      puts " * heroku_app:   #{target.heroku_app}"
+      puts " * git_remote:   #{target.git_remote}"
+      puts " * deploy_ref:   #{target.deploy_ref}"
     end
     puts
     puts "(defined in config/heroku_targets.yml)"
@@ -415,15 +365,15 @@ class Heroku < Thor
     desc "to STAGING_TARGET --from=SOURCE_TARGET", "push db onto STAGING_TARGET from SOURCE_TARGET"
 
     def to(to_target_name)
-      self.implied_target = lookup_heroku_staging(to_target_name)
+      @target = lookup_heroku_staging(to_target_name)
       self.implied_source = lookup_heroku(options[:from])
 
-      maintenance_on # target, not source
+      maintenance_on
 
       puts_and_system %(
-        heroku pg:copy #{implied_source.heroku_app}::#{implied_source.db_color} #{implied_target.db_color} -a #{implied_target.heroku_app} --confirm #{implied_target.heroku_app}
+        heroku pg:copy #{implied_source.heroku_app}::#{implied_source.db_color} #{target.db_color} -a #{target.heroku_app} --confirm #{target.heroku_app}
       )
-      Configuration.after_sync_to(self, implied_target) unless options[:just_copy]
+      Configuration.after_sync_to(self, target) unless options[:just_copy]
       maintenance_off
     end
 
@@ -445,25 +395,25 @@ class Heroku < Thor
     desc "drop_all_tables on STAGING_TARGET", "drop all tables on STAGING_TARGET"
 
     def drop_all_tables(staging_target_name)
-      self.implied_target = lookup_heroku_staging(staging_target_name)
+      @target = lookup_heroku_staging(staging_target_name)
       generate_drop_tables_sql = `#{HerokuTool::DbConfiguration.new.generate_drop_tables_sql}`
-      cmd_string = %(heroku pg:psql -a #{implied_target.heroku_app} -c "#{generate_drop_tables_sql}")
+      cmd_string = %(heroku pg:psql -a #{target.heroku_app} -c "#{generate_drop_tables_sql}")
       puts_and_system(cmd_string)
     end
 
     desc "anonymize STAGING_TARGET", "run anonymization scripts on STAGING_TARGET"
 
     def anonymize(staging_target_name)
-      self.implied_target = lookup_heroku_staging(staging_target_name)
+      @target = lookup_heroku_staging(staging_target_name)
       puts_and_system %(
-        heroku run rake data:anonymize -a #{implied_target.heroku_app}
+        heroku run rake data:anonymize -a #{target.heroku_app}
       )
     end
   end
 
   private
 
-  def fetch_asset_host(target)
+  def fetch_asset_host
     get_config_env(target, "ASSET_HOST")
   end
 

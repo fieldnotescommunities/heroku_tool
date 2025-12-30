@@ -47,6 +47,7 @@ RSpec.describe "Heroku thor" do
 
   shared_context "with collected system calls" do
     let(:system_calls) { [] }
+
     around do |example|
       example.run
     rescue SystemExit
@@ -74,13 +75,14 @@ RSpec.describe "Heroku thor" do
       it "should work" do
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(6)
-        expect(system_calls[0]).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
-        expect(system_calls[1]).to eq "heroku maintenance:on -a my-heroku-app"
-        expect(system_calls[2]).to eq "heroku config:set X_HEROKU_TOOL_MAINTENANCE_MODE=true -a my-heroku-app"
-        expect(system_calls[3]).to eq "heroku run rails db:migrate -a my-heroku-app"
-        expect(system_calls[4]).to eq "heroku maintenance:off -a my-heroku-app"
-        expect(system_calls[5]).to eq "heroku config:unset X_HEROKU_TOOL_MAINTENANCE_MODE -a my-heroku-app"
+        expect(system_calls.length).to eq(7)
+        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
+        expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        expect(system_calls.shift).to eq "heroku maintenance:on -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku config:set X_HEROKU_TOOL_MAINTENANCE_MODE=true -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku run rake db:migrate -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku maintenance:off -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku config:unset X_HEROKU_TOOL_MAINTENANCE_MODE -a my-heroku-app"
       end
 
       it "should call before and after hooks" do
@@ -109,8 +111,9 @@ RSpec.describe "Heroku thor" do
       it "should work" do
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(1)
-        expect(system_calls[0]).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        expect(system_calls.length).to eq(2)
+        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
+        expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
       end
 
       it "should call before and after hooks" do
