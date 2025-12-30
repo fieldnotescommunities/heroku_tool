@@ -11,7 +11,7 @@ module HerokuTool
       end
 
       def from_file(yaml_file)
-        new(YAML.safe_load(File.read(yaml_file)))
+        new(YAML.safe_load_file(yaml_file))
       end
     end
 

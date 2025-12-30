@@ -44,13 +44,13 @@ class Heroku < Thor
 
       def after_sync_down(instance)
         # could add source ?
-        instance.puts_and_system "rake db:migrate"
-        instance.puts_and_system "rake db:test:prepare"
+        instance.puts_and_system "rails db:migrate"
+        instance.puts_and_system "rails db:test:prepare"
       end
 
       def after_sync_to(instance, target)
         # could add source ?
-        instance.puts_and_system %(heroku run rake db:migrate -a #{target.heroku_app})
+        instance.puts_and_system %(heroku run rails db:migrate -a #{target.heroku_app})
       end
     end
   end
@@ -58,13 +58,14 @@ class Heroku < Thor
   module Shared
     attr_accessor :implied_source, :implied_target
 
-    def included(base) #:nodoc:
-      super(base)
+    def self.included(base) #:nodoc:
+      p(at: :included, base: base)
+      super
       base.extend ClassMethods
       base.include HerokuTool::ThorUtils
     end
 
-    class ClassMethods
+    module ClassMethods
       def exit_on_failure?
         true
       end
@@ -201,7 +202,7 @@ class Heroku < Thor
 
     maintenance_on if maintenance
     if migrate_outside_of_release_phase?
-      puts_and_system "heroku run rake db:migrate -a #{implied_target.heroku_app}"
+      puts_and_system "heroku run rails db:migrate -a #{implied_target.heroku_app}"
     end
 
     app_revision_env_var = Heroku::Configuration.app_revision_env_var
