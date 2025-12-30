@@ -111,7 +111,7 @@ class Heroku < Thor
 
     protected
 
-    delegate :deploy_ref_describe, :maintenance_off, :maintenance_on, :output_to_be_deployed, :migrate_outside_of_release_phase?, :puts_and_exec, :puts_and_system,
+    delegate :deploy_ref_describe, :exec_with_clean_env, :maintenance_off, :maintenance_on, :output_to_be_deployed, :migrate_outside_of_release_phase?, :puts_and_exec, :puts_and_system,
       to: :commander
   end
 

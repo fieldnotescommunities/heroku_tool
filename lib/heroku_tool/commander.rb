@@ -70,6 +70,16 @@ module HerokuTool
       exec_with_clean_env(cmd)
     end
 
+    def exec_with_clean_env(cmd)
+      if defined?(Bundler) && Bundler.respond_to?(:with_unbundled_env)
+        Bundler.with_unbundled_env { `#{cmd}` }
+      elsif defined?(Bundler)
+        Bundler.with_clean_env { `#{cmd}` }
+      else
+        `#{cmd}`
+      end
+    end
+
     protected
 
     def system_with_clean_env(cmd)
@@ -79,16 +89,6 @@ module HerokuTool
         Bundler.with_clean_env { system cmd }
       else
         system cmd
-      end
-    end
-
-    def exec_with_clean_env(cmd)
-      if defined?(Bundler) && Bundler.respond_to?(:with_unbundled_env)
-        Bundler.with_unbundled_env { `#{cmd}` }
-      elsif defined?(Bundler)
-        Bundler.with_clean_env { `#{cmd}` }
-      else
-        `#{cmd}`
       end
     end
   end

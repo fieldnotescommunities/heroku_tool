@@ -24,27 +24,6 @@ RSpec.describe "Heroku thor" do
   }
   let(:targets) { HerokuTool::HerokuTargets.from_string(targets_yml) }
 
-  describe "configs" do
-    let(:heroku_thor) { Heroku.new }
-
-    around do |example|
-      example.run
-    rescue SystemExit
-      puts "!!!system exit called"
-    end
-
-    before do
-      Dir.mkdir("tmp") unless Dir.exist?("tmp")
-      allow(heroku_thor).to receive(:heroku_targets).and_return(targets)
-    end
-
-    it "calls once per target" do
-      expect(heroku_thor).to receive(:exec_with_clean_env).with(start_with("heroku config -s -a my-heroku-app"))
-      expect(heroku_thor).to receive(:exec_with_clean_env).with(start_with("heroku config -s -a my-heroku-staging-app"))
-      heroku_thor.configs
-    end
-  end
-
   shared_context "with collected system calls" do
     let(:system_calls) { [] }
 
@@ -60,10 +39,32 @@ RSpec.describe "Heroku thor" do
         system_calls << whatever.join(" ")
         true
       end
-      allow_any_instance_of(Object).to receive(:exec) do |_instance, *whatever| # rubocop:disable RSpec/AnyInstance
+      allow_any_instance_of(Object).to receive(:`) do |_instance, *whatever| # rubocop:disable RSpec/AnyInstance
         system_calls << whatever.join(" ")
-        true
+        "something"
       end
+    end
+  end
+
+  describe "configs" do
+    include_context "with collected system calls"
+
+    subject{ Heroku.start(["configs"]) }
+    around do |example|
+      example.run
+    rescue SystemExit
+      puts "!!!system exit called"
+    end
+
+    before do
+      Dir.mkdir("tmp") unless Dir.exist?("tmp")
+    end
+
+    it "calls once per target" do
+      subject
+      expect(system_calls.length).to eq(2)
+      expect(system_calls.shift).to start_with("heroku config -s -a my-heroku-app")
+      expect(system_calls.shift).to start_with("heroku config -s -a my-heroku-staging-app")
     end
   end
 
@@ -75,7 +76,8 @@ RSpec.describe "Heroku thor" do
       it "should work" do
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(7)
+        expect(system_calls.length).to eq(9)
+        expect(system_calls.shift).to eq "git describe origin/main"
         expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
         expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
         expect(system_calls.shift).to eq "heroku maintenance:on -a my-heroku-app"
@@ -83,6 +85,7 @@ RSpec.describe "Heroku thor" do
         expect(system_calls.shift).to eq "heroku run rake db:migrate -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku maintenance:off -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku config:unset X_HEROKU_TOOL_MAINTENANCE_MODE -a my-heroku-app"
+        expect(system_calls.shift).to eq "git log -1 origin/main --pretty=format:%H"
       end
 
       it "should call before and after hooks" do
@@ -111,9 +114,11 @@ RSpec.describe "Heroku thor" do
       it "should work" do
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(2)
+        expect(system_calls.length).to eq(4)
+        expect(system_calls.shift).to eq "git describe origin/main"
         expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
         expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        expect(system_calls.shift).to eq "git log -1 origin/main --pretty=format:%H"
       end
 
       it "should call before and after hooks" do
