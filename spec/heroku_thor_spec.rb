@@ -71,7 +71,7 @@ RSpec.describe "Heroku thor" do
     end
 
     it "calls once per target" do
-      expect{subject}.to output.to_stdout
+      expect { subject }.to output.to_stdout
       expect(system_calls.length).to eq(2)
       expect(system_calls.shift).to start_with("heroku config -s -a my-heroku-app")
       expect(system_calls.shift).to start_with("heroku config -s -a my-heroku-staging-app")
