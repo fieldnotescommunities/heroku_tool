@@ -7,6 +7,7 @@ inherit_gem:
   standard: config/base.yml
 
 AllCops:
+  TargetRubyVersion: 3.2
   NewCops: enable
   Exclude:
     - node_modules/**/*
@@ -23,7 +24,13 @@ RSpec/DescribeClass:
 RSpec/DescribedClass:
   Enabled: false
 
+RSpec/ExampleLength:
+  Enabled: false
+
 RSpec/ExampleWording:
+  Enabled: false
+
+RSpec/ExpectInHook:
   Enabled: false
 
 RSpec/MessageSpies:
@@ -33,4 +40,10 @@ RSpec/MultipleExpectations:
   Enabled: false
 
 RSpec/NamedSubject:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+RSpec/StubbedMock:
   Enabled: false
