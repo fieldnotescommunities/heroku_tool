@@ -103,6 +103,10 @@ module HerokuTool
         @values[:migrate_in_release_phase]
       end
 
+      def url
+        @values[:url]
+      end
+
       def to_s
         display_name
       end
