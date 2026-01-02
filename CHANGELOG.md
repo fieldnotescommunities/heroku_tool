@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.9.1
+
+support url in heroku targets
+
 ## v0.9.0
 
 - BREAKING CHANGE: Heroku::Configuration has been renamed to HerokuTool::Configuration and is now must be an instance not a class method
