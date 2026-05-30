@@ -194,24 +194,35 @@ class Heroku < Thor
     end
 
     def notify_bugsnag_of_deploy_tracking(deploy_ref:, revision:)
-      api_key = ENV["BUGSNAG_API_KEY"]
-      data = %W[
-        apiKey=#{api_key}
-        releaseStage=#{target.trackable_release_stage}
-        repository=#{target.repository}
-        revision=#{revision}
-        appVersion=#{deploy_ref_describe(deploy_ref)}
-      ].join("&")
-      if api_key.blank?
+      api_key = ENV["BUGSNAG_API_KEY"].presence || "API_KEY"
+
+      app_version = deploy_ref_describe(deploy_ref)
+      json_data = {
+        apiKey: api_key,
+        appVersion: api_version,
+        sourceControl: {
+          repository: target.repository,
+          revision: revision
+        },
+        releaseStage: target.trackable_release_stage
+      }
+
+      args = [
+        "-H", "Content-Type: application/json",
+        "-H", "apiKey: #{apiKey}",
+        "-H", "appVersion: #{app_version}",
+        "-d", json_data.to_json,
+        "https://build.bugsnag.com"
+      ]
+      if api_key == "API_KEY"
         puts "\n" + ("*" * 80) + "\n"
-        command = "curl -d #{data} http://notify.bugsnag.com/deploy"
-        puts command
+        puts([cmd, *args].join(" "))
         puts "\n" + ("*" * 80) + "\n"
         puts "NB: can't notify unless you specify BUGSNAG_API_KEY and rerun"
         puts "  thor heroku:deploy_tracking #{target.name} #{deploy_ref}"
-      else
-        puts_and_system "curl -d \"#{data}\" http://notify.bugsnag.com/deploy"
+        return
       end
+      puts_and_system("curl", *args)
     end
   end
 

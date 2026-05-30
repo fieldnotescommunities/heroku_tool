@@ -40,6 +40,10 @@ RSpec.describe "Heroku thor" do
 
     before do
       allow(HerokuTool::HerokuTargets).to receive(:from_file).and_return(targets)
+      allow(Open3).to receive(:capture2) do |*whatever| # rubocop:disable RSpec/AnyInstance
+        system_calls << whatever.join(" ")
+        ["something", instance_double(Process::Status)]
+      end
       allow_any_instance_of(Object).to receive(:system) do |_instance, *whatever| # rubocop:disable RSpec/AnyInstance
         system_calls << whatever.join(" ")
         if whatever.join(" ").match(failure_matcher)
@@ -84,6 +88,7 @@ RSpec.describe "Heroku thor" do
       subject { Heroku.start(["deploy", "my-heroku-app"]) }
 
       it "should work" do
+        expect(system_calls).to be_empty
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
         expect(system_calls.length).to eq(9)
