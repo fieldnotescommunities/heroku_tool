@@ -211,7 +211,6 @@ RSpec.describe "Heroku thor" do
         expect(system_calls.shift).to eq "git describe origin/main"
         expect(system_calls.shift).to start_with "curl -H Content-Type: application/json -H apiKey"
       end
-
     end
   end
 
