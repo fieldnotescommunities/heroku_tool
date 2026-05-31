@@ -185,6 +185,34 @@ RSpec.describe "Heroku thor" do
         expect(system_calls).to be_empty
       end
     end
+
+    context "with BUGSNAG_API_KEY" do
+      subject { Heroku.start(["deploy", "my-heroku-app"]) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("BUGSNAG_API_KEY").and_return("test_key")
+      end
+
+      it "should work" do
+        expect(system_calls).to be_empty
+        expect { subject }.to output.to_stdout
+        expect(system_calls).not_to be_empty
+        expect(system_calls.length).to eq(11)
+        expect(system_calls.shift).to eq "git describe origin/main"
+        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
+        expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        expect(system_calls.shift).to eq "heroku maintenance:on -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku config:set X_HEROKU_TOOL_MAINTENANCE_MODE=true -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku run rake db:migrate -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku maintenance:off -a my-heroku-app"
+        expect(system_calls.shift).to eq "heroku config:unset X_HEROKU_TOOL_MAINTENANCE_MODE -a my-heroku-app"
+        expect(system_calls.shift).to eq "git log -1 origin/main --pretty=format:%H"
+        expect(system_calls.shift).to eq "git describe origin/main"
+        expect(system_calls.shift).to start_with "curl -H Content-Type: application/json -H apiKey"
+      end
+
+    end
   end
 
   describe "sync:" do

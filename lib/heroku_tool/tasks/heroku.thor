@@ -199,7 +199,7 @@ class Heroku < Thor
       app_version = deploy_ref_describe(deploy_ref)
       json_data = {
         apiKey: api_key,
-        appVersion: api_version,
+        appVersion: app_version,
         sourceControl: {
           repository: target.repository,
           revision: revision
@@ -209,7 +209,7 @@ class Heroku < Thor
 
       args = [
         "-H", "Content-Type: application/json",
-        "-H", "apiKey: #{apiKey}",
+        "-H", "apiKey: #{api_key}",
         "-H", "appVersion: #{app_version}",
         "-d", json_data.to_json,
         "https://build.bugsnag.com"
