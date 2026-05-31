@@ -216,7 +216,7 @@ class Heroku < Thor
       ]
       if api_key == "API_KEY"
         puts "\n" + ("*" * 80) + "\n"
-        puts([cmd, *args].join(" "))
+        puts("curl #{args.join(" ")}")
         puts "\n" + ("*" * 80) + "\n"
         puts "NB: can't notify unless you specify BUGSNAG_API_KEY and rerun"
         puts "  thor heroku:deploy_tracking #{target.name} #{deploy_ref}"
