@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "open3"
+
 module HerokuTool
   class Commander
     # @return [HerokuTool::HerokuTargets::HerokuTarget]
@@ -65,10 +67,10 @@ module HerokuTool
     end
 
     # @return [Boolean] true if the command was successful
-    def puts_and_system(cmd)
-      puts cmd
+    def puts_and_system(cmd, *args)
+      puts([cmd, *args].join(" "))
       puts "-------------"
-      system_with_clean_env(cmd).tap do |result|
+      system_with_clean_env(cmd, *args).tap do |result|
         if result
           puts "-------------"
         else
@@ -77,30 +79,31 @@ module HerokuTool
       end
     end
 
-    def puts_and_exec(cmd)
-      puts cmd
-      exec_with_clean_env(cmd)
+    def puts_and_exec(cmd, *args)
+      puts([cmd, *args].join(" "))
+      exec_with_clean_env(cmd, *args)
     end
 
-    def exec_with_clean_env(cmd)
-      if defined?(Bundler) && Bundler.respond_to?(:with_unbundled_env)
-        Bundler.with_unbundled_env { `#{cmd}` }
+    def exec_with_clean_env(cmd, *args)
+      output, _status = if defined?(Bundler) && Bundler.respond_to?(:with_unbundled_env)
+        Bundler.with_unbundled_env { Open3.capture2(cmd, *args) }
       elsif defined?(Bundler)
-        Bundler.with_clean_env { `#{cmd}` }
+        Bundler.with_clean_env { Open3.capture2(cmd, *args) }
       else
-        `#{cmd}`
+        Open3.capture2(cmd, *args)
       end
+      output
     end
 
     protected
 
-    def system_with_clean_env(cmd)
+    def system_with_clean_env(cmd, *args)
       if defined?(Bundler) && Bundler.respond_to?(:with_unbundled_env)
-        Bundler.with_unbundled_env { system cmd }
+        Bundler.with_unbundled_env { system(cmd, *args) }
       elsif defined?(Bundler)
-        Bundler.with_clean_env { system cmd }
+        Bundler.with_clean_env { system(cmd, *args) }
       else
-        system cmd
+        system(cmd, *args)
       end
     end
   end
