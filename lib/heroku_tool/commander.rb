@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "shellwords"
 
 module HerokuTool
   class Commander
@@ -14,13 +15,21 @@ module HerokuTool
       @configuration = configuration
     end
 
+    # The deploy ref is resolved to a commit once, before anything else happens, and that commit is what gets
+    # described, pushed and recorded: checking out another branch (or fetching) while the deploy is running
+    # doesn't change what is deployed or how it is reported.
+    #
+    # @return [String, false] the revision (commit sha) that was deployed, or false if the deploy failed
     def deploy(deploy_ref, with_maintenance:)
-      deploy_ref_description = deploy_ref_describe(deploy_ref)
+      revision = resolve_revision(deploy_ref)
+      return false unless revision
+
+      deploy_ref_description = deploy_ref_describe(revision)
       puts "Deploy #{deploy_ref_description} to #{target} with migrate=#{target.migrate_in_release_phase ? "(during release phase)" : migrate_outside_of_release_phase?} with_maintenance=#{with_maintenance} "
 
-      output_to_be_deployed(deploy_ref)
+      output_to_be_deployed(revision)
       configuration.before_deploying(self, target, deploy_ref_description)
-      successful_push = puts_and_system "git push -f #{target.git_remote} #{deploy_ref || target}^{}:#{target.heroku_target_ref}"
+      successful_push = puts_and_system "git push -f #{target.git_remote} #{revision}:#{target.heroku_target_ref}"
 
       return false unless successful_push
 
@@ -32,12 +41,22 @@ module HerokuTool
       app_revision_env_var = configuration.app_revision_env_var
       if app_revision_env_var && app_revision_env_var != "HEROKU_SLUG_COMMIT"
         # HEROKU_SLUG_COMMIT is automatically set by https://devcenter.heroku.com/articles/dyno-metadata
-        puts_and_system %{heroku config:set #{app_revision_env_var}=$(git describe --always #{deploy_ref}) -a #{target.heroku_app}}
+        puts_and_system "heroku config:set #{app_revision_env_var}=#{Shellwords.escape(deploy_ref_description)} -a #{target.heroku_app}"
       end
 
       maintenance_off if with_maintenance
       configuration.after_deploying(self, target, deploy_ref_description)
-      true
+      revision
+    end
+
+    # @return [String, nil] the sha of the commit that deploy_ref (or the target's deploy_ref) points at right now
+    def resolve_revision(deploy_ref = nil)
+      deploy_ref ||= target.deploy_ref
+      revision = `git rev-parse --verify --quiet #{deploy_ref}^{commit}`.strip
+      return revision unless revision.empty?
+
+      puts "❌ Can't resolve '#{deploy_ref}' to a commit"
+      nil
     end
 
     def maintenance_on
@@ -55,7 +74,7 @@ module HerokuTool
     end
 
     def deploy_ref_describe(deploy_ref = nil)
-      `git describe #{deploy_ref || target.deploy_ref}`.strip
+      `git describe --always #{deploy_ref || target.deploy_ref}`.strip
     end
 
     def output_to_be_deployed(since_deploy_ref = nil)
