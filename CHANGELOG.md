@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.3
+
+record the app revision using git describe, at the beginning of the process (in case of accidental branch switches)
+
+## v0.9.2
+
+update and fix bugsnag deploy tracking
+
 ## v0.9.1
 
 support url in heroku targets
