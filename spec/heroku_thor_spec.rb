@@ -54,7 +54,12 @@ RSpec.describe "Heroku thor" do
       end
       allow_any_instance_of(Object).to receive(:`) do |_instance, *whatever| # rubocop:disable RSpec/AnyInstance
         system_calls << whatever.join(" ")
-        "something"
+        case whatever.join(" ")
+        when failure_matcher then ""
+        when /\Agit rev-parse/ then "abc1234\n"
+        when /\Agit describe/ then "v1.2.3-4-gabc1234\n"
+        else "something"
+        end
       end
     end
   end
@@ -91,16 +96,17 @@ RSpec.describe "Heroku thor" do
         expect(system_calls).to be_empty
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(9)
-        expect(system_calls.shift).to eq "git describe origin/main"
-        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
-        expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        expect(system_calls.length).to eq(10)
+        expect(system_calls.shift).to eq "git rev-parse --verify --quiet origin/main^{commit}"
+        expect(system_calls.shift).to eq "git describe --always abc1234"
+        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..abc1234"
+        expect(system_calls.shift).to eq "git push -f heroku-production abc1234:refs/heads/main"
         expect(system_calls.shift).to eq "heroku maintenance:on -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku config:set X_HEROKU_TOOL_MAINTENANCE_MODE=true -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku run rake db:migrate -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku maintenance:off -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku config:unset X_HEROKU_TOOL_MAINTENANCE_MODE -a my-heroku-app"
-        expect(system_calls.shift).to eq "git log -1 origin/main --pretty=format:%H"
+        expect(system_calls.shift).to eq "git log -1 abc1234 --pretty=format:%H"
       end
 
       it "should call before and after hooks" do
@@ -119,11 +125,54 @@ RSpec.describe "Heroku thor" do
           expect(configuration).not_to receive(:notify_of_deploy_tracking)
           expect { subject }.to output.to_stdout
           expect(system_calls).not_to be_empty
-          expect(system_calls.length).to eq(3)
-          expect(system_calls.shift).to eq "git describe origin/main"
-          expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
-          expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+          expect(system_calls.length).to eq(4)
+          expect(system_calls.shift).to eq "git rev-parse --verify --quiet origin/main^{commit}"
+          expect(system_calls.shift).to eq "git describe --always abc1234"
+          expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..abc1234"
+          expect(system_calls.shift).to eq "git push -f heroku-production abc1234:refs/heads/main"
         end
+      end
+
+      context "when the deploy ref can't be resolved" do
+        let(:failure_matcher) { /git rev-parse/ }
+
+        it "should stop before any hooks or pushing" do
+          expect(configuration).not_to receive(:before_deploying)
+          expect(configuration).not_to receive(:after_deploying)
+          expect(configuration).not_to receive(:notify_of_deploy_tracking)
+          expect { subject }.to output(/Can't resolve 'origin\/main' to a commit/).to_stdout
+          expect(system_calls).to eq ["git rev-parse --verify --quiet origin/main^{commit}"]
+        end
+      end
+
+      context "with an explicit ref" do
+        subject { Heroku.start(["deploy", "my-heroku-app", "v1.2.3"]) }
+
+        it "should resolve that ref once and deploy the resolved revision" do
+          expect { subject }.to output.to_stdout
+          expect(system_calls.first).to eq "git rev-parse --verify --quiet v1.2.3^{commit}"
+          expect(system_calls.grep(/v1\.2\.3(?!-)/).length).to eq(1)
+          expect(system_calls).to include "git push -f heroku-production abc1234:refs/heads/main"
+          expect(system_calls).to include "git log -1 abc1234 --pretty=format:%H"
+        end
+      end
+    end
+
+    context "with app_revision_env_var" do
+      subject { Heroku.start(["deploy", "my-heroku-app"]) }
+
+      before do
+        allow(configuration).to receive(:app_revision_env_var).and_return("APP_REVISION")
+        allow(configuration).to receive(:notify_of_deploy_tracking)
+      end
+
+      it "should set it to the description captured before deploying" do
+        expect(configuration).to receive(:before_deploying).with(anything, anything, "v1.2.3-4-gabc1234")
+        expect(configuration).to receive(:after_deploying).with(anything, anything, "v1.2.3-4-gabc1234")
+        expect { subject }.to output.to_stdout
+        expect(system_calls.grep(/git describe/)).to eq ["git describe --always abc1234"]
+        expect(system_calls.index("git describe --always abc1234")).to be < system_calls.index("git push -f heroku-production abc1234:refs/heads/main")
+        expect(system_calls).to include "heroku config:set APP_REVISION=v1.2.3-4-gabc1234 -a my-heroku-app"
       end
     end
 
@@ -146,11 +195,12 @@ RSpec.describe "Heroku thor" do
       it "should work" do
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(4)
-        expect(system_calls.shift).to eq "git describe origin/main"
-        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
-        expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
-        expect(system_calls.shift).to eq "git log -1 origin/main --pretty=format:%H"
+        expect(system_calls.length).to eq(5)
+        expect(system_calls.shift).to eq "git rev-parse --verify --quiet origin/main^{commit}"
+        expect(system_calls.shift).to eq "git describe --always abc1234"
+        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..abc1234"
+        expect(system_calls.shift).to eq "git push -f heroku-production abc1234:refs/heads/main"
+        expect(system_calls.shift).to eq "git log -1 abc1234 --pretty=format:%H"
       end
 
       it "should call before and after hooks" do
@@ -169,10 +219,11 @@ RSpec.describe "Heroku thor" do
           expect(configuration).not_to receive(:notify_of_deploy_tracking)
           expect { subject }.to output.to_stdout
           expect(system_calls).not_to be_empty
-          expect(system_calls.length).to eq(3)
-          expect(system_calls.shift).to eq "git describe origin/main"
-          expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
-          expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+          expect(system_calls.length).to eq(4)
+          expect(system_calls.shift).to eq "git rev-parse --verify --quiet origin/main^{commit}"
+          expect(system_calls.shift).to eq "git describe --always abc1234"
+          expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..abc1234"
+          expect(system_calls.shift).to eq "git push -f heroku-production abc1234:refs/heads/main"
         end
       end
     end
@@ -198,17 +249,18 @@ RSpec.describe "Heroku thor" do
         expect(system_calls).to be_empty
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
-        expect(system_calls.length).to eq(11)
-        expect(system_calls.shift).to eq "git describe origin/main"
-        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..origin/main"
-        expect(system_calls.shift).to eq "git push -f heroku-production origin/main^{}:refs/heads/main"
+        expect(system_calls.length).to eq(12)
+        expect(system_calls.shift).to eq "git rev-parse --verify --quiet origin/main^{commit}"
+        expect(system_calls.shift).to eq "git describe --always abc1234"
+        expect(system_calls.shift).to eq "git --no-pager log $(heroku config:get  -a my-heroku-app)..abc1234"
+        expect(system_calls.shift).to eq "git push -f heroku-production abc1234:refs/heads/main"
         expect(system_calls.shift).to eq "heroku maintenance:on -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku config:set X_HEROKU_TOOL_MAINTENANCE_MODE=true -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku run rake db:migrate -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku maintenance:off -a my-heroku-app"
         expect(system_calls.shift).to eq "heroku config:unset X_HEROKU_TOOL_MAINTENANCE_MODE -a my-heroku-app"
-        expect(system_calls.shift).to eq "git log -1 origin/main --pretty=format:%H"
-        expect(system_calls.shift).to eq "git describe origin/main"
+        expect(system_calls.shift).to eq "git log -1 abc1234 --pretty=format:%H"
+        expect(system_calls.shift).to eq "git describe --always abc1234"
         expect(system_calls.shift).to start_with "curl -H Content-Type: application/json -H apiKey"
       end
     end
