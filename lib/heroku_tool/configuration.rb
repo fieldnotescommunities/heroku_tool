@@ -36,6 +36,12 @@ module HerokuTool
       end
     end
 
+    # tables whose data heroku:db:from_dump leaves out (the tables are still created, empty),
+    # e.g. %w[versions] for a large audit table you don't need locally
+    def skip_table_data
+      []
+    end
+
     def after_sync_down(instance)
       # could add source ?
       instance.puts_and_system "rails db:migrate"

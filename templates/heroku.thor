@@ -37,6 +37,10 @@ class Heroku
     #  instance.puts_and_system "rake dev:dev_data"
     # end
     #
+    # def skip_table_data
+    #  %w[versions]
+    # end
+    #
     # def after_sync_to(instance, target)
     #  super
     #  instance.puts_and_system %(heroku run rake dev:staging_data -a #{target.heroku_app})

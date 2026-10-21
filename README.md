@@ -93,6 +93,14 @@ Sync a database down from remote to local
 
 _FYI rake db:drop_all_tables is handy as it doesn't require you to disconnect any running processes from the database._
 
+`from_dump` restores with 4 parallel jobs (`--jobs N` to change). To leave out the data of
+large tables you don't need locally (an audit table, say), list them in your configuration;
+the tables are still created, just empty, and `--all-data` restores everything:
+
+    def skip_table_data
+      %w[versions]
+    end
+
 Copy production db to staging
 
     thor heroku:sync:to staging -f production

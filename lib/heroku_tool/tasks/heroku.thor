@@ -318,13 +318,33 @@ class Heroku < Thor
     desc "from_dump --from SOURCE_TARGET", "make the db the same as the last target dump from SOURCE_TARGET"
 
     method_option :just_restore, default: false, desc: "Just do restore without post-actions", type: :boolean
+    method_option :all_data, default: false, desc: "Also restore the data of the tables in Configuration#skip_table_data", type: :boolean
+    method_option :jobs, default: 4, desc: "Number of parallel pg_restore jobs", type: :numeric
 
     def from_dump
       invoke "warn", [], from: options[:from]
       source = lookup_heroku(options[:from])
       db_config = ::HerokuTool::DbConfiguration.new
-      puts_and_system "pg_restore --verbose --clean --no-acl --no-owner -h localhost #{db_config.user_arg} -d #{db_config.database} #{source.dump_filename}"
+      puts_and_system "pg_restore --verbose --clean --no-acl --no-owner -j #{options[:jobs]} #{restore_list_arg(source)}-h localhost #{db_config.user_arg} -d #{db_config.database} #{source.dump_filename}"
       configuration.after_sync_down(self) unless options[:just_restore]
+    end
+
+    no_commands do
+      # @return [String] "-L <list> " naming a copy of the dump's table of contents with the
+      #   data of Configuration#skip_table_data commented out, or "" when nothing is skipped
+      def restore_list_arg(source)
+        tables = options[:all_data] ? [] : configuration.skip_table_data
+        return "" if tables.empty?
+
+        toc, status = Open3.capture2("pg_restore", "-l", source.dump_filename)
+        raise Thor::Error, "pg_restore -l #{source.dump_filename} failed" unless status.success?
+
+        patterns = tables.map { |table| / TABLE DATA public #{Regexp.escape(table)} / }
+        list = toc.lines.map { |line| (patterns.any? { |pattern| line.match?(pattern) }) ? ";#{line}" : line }
+        list_filename = "#{source.dump_filename}.list"
+        File.write(list_filename, list.join)
+        "-L #{list_filename} "
+      end
     end
 
     desc "dump_to_tmp", "dump to tmp directory"
