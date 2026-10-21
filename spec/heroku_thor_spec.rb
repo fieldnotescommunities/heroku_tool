@@ -296,9 +296,76 @@ RSpec.describe "Heroku thor" do
         expect { subject }.to output.to_stdout
         expect(system_calls).not_to be_empty
         expect(system_calls.length).to eq(3)
-        expect(system_calls.shift).to match(/pg_restore --verbose --clean --no-acl --no-owner -h localhost -u someone -d my_database .*latest_my-heroku-app_backup.dump/)
+        expect(system_calls.shift).to match(/pg_restore --verbose --clean --no-acl --no-owner -j 4 -h localhost -u someone -d my_database .*latest_my-heroku-app_backup.dump/)
         expect(system_calls.shift).to eq("rails db:migrate")
         expect(system_calls.shift).to eq("rails db:test:prepare")
+      end
+
+      context "with --jobs" do
+        subject { Heroku::Sync.start(["from_dump", "--from", "my-heroku-app", "--jobs", "1"]) }
+
+        it "should restore with that many jobs" do
+          expect { subject }.to output.to_stdout
+          expect(system_calls.first).to match(/pg_restore .* -j 1 -h localhost/)
+        end
+      end
+
+      context "with skip_table_data configured" do
+        def toc
+          <<~TOC
+            ;
+            ; Archive created at 2026-10-21 12:33:02 BST
+            ;
+            6527; 0 17544 TABLE DATA public users someone
+            6528; 0 17553 TABLE DATA public versions someone
+            6529; 0 17560 TABLE DATA public versions_archive someone
+          TOC
+        end
+
+        def list_filename
+          "#{targets.targets["my-heroku-app"].dump_filename}.list"
+        end
+
+        let(:status) { instance_double(Process::Status, success?: true) }
+
+        before do
+          Dir.mkdir("tmp") unless Dir.exist?("tmp")
+          allow(configuration).to receive(:skip_table_data).and_return(%w[versions])
+          allow(Open3).to receive(:capture2).with("pg_restore", "-l", /latest_my-heroku-app_backup.dump\z/).and_return([toc, status])
+        end
+
+        after do
+          FileUtils.rm_f(list_filename)
+        end
+
+        it "should restore from a list without that table's data" do
+          expect { subject }.to output.to_stdout
+          expect(system_calls.first).to match(/pg_restore .* -j 4 -L #{Regexp.escape(list_filename)} -h localhost/)
+          expect(File.read(list_filename).lines.grep(/TABLE DATA/)).to eq([
+            "6527; 0 17544 TABLE DATA public users someone\n",
+            ";6528; 0 17553 TABLE DATA public versions someone\n",
+            "6529; 0 17560 TABLE DATA public versions_archive someone\n"
+          ])
+        end
+
+        context "with --all-data" do
+          subject { Heroku::Sync.start(["from_dump", "--from", "my-heroku-app", "--all-data"]) }
+
+          it "should restore everything" do
+            expect { subject }.to output.to_stdout
+            expect(Open3).not_to have_received(:capture2)
+            expect(system_calls.first).not_to include("-L")
+          end
+        end
+
+        context "when the dump can't be listed" do
+          let(:status) { instance_double(Process::Status, success?: false) }
+
+          it "should not restore" do
+            expect { subject }.to output(/pg_restore -l .* failed/).to_stderr
+            expect(system_calls).to be_empty
+          end
+        end
       end
     end
   end
