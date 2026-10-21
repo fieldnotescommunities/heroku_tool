@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.9.4
 
 - `heroku:db:from_dump` restores with parallel jobs: `--jobs`, default 4 (use `--jobs 1` for the old behaviour)
 - `Configuration#skip_table_data` lists tables whose data `from_dump` leaves out (the tables are still created, empty); `--all-data` restores them anyway
